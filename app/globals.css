@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+html {
+  zoom: var(--app-scale, 1);
+}
