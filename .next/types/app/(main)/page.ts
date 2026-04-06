@@ -1,4 +1,4 @@
-// File: D:\projects\ojt-player-queuing\frontend_nextjs\app\(main)\page.js
+// File: D:\projects\player-queuing\web\app\(main)\page.js
 import * as entry from '../../../../app/(main)/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

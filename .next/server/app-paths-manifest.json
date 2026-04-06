@@ -1,8 +1,3 @@
 {
-  "/(main)/page": "app/(main)/page.js",
-  "/(main)/ongoing/page": "app/(main)/ongoing/page.js",
-  "/(main)/payments/page": "app/(main)/payments/page.js",
-  "/(main)/players/page": "app/(main)/players/page.js",
-  "/(main)/courts/page": "app/(main)/courts/page.js",
-  "/(main)/records/page": "app/(main)/records/page.js"
+  "/(main)/page": "app/(main)/page.js"
 }
