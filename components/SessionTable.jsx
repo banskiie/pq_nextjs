@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client/react'
 import StatusBadge from './StatusBadge'
@@ -41,6 +41,7 @@ const formatCurrency = (amount) => {
 
 const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSession, onEditSession, onEndSession, onCreateSession, onNavigateToMatches }) => {
   const [currentPage, setCurrentPage] = useState(1)
+  const [expandedSessionId, setExpandedSessionId] = useState(null)
   const itemsPerPage = 4
   const sessionIds = sessions.map((session) => session._id).filter(Boolean)
   const { data: gamesData } = useQuery(GAMES_BY_SESSION_IDS_QUERY, {
@@ -60,20 +61,27 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
   const canEnd = (session) => session.status === 'OPEN'
 
   // Pagination calculations
-  const totalPages = Math.ceil(sessions.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
+  const totalPages = Math.max(1, Math.ceil(sessions.length / itemsPerPage))
+  const clampedPage = Math.min(currentPage, totalPages)
+  const startIndex = (clampedPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedSessions = sessions.slice(startIndex, endIndex)
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
+    if (clampedPage < totalPages) {
+      setCurrentPage(clampedPage + 1)
     }
   }
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
+    if (clampedPage > 1) {
+      setCurrentPage(clampedPage - 1)
     }
   }
 
@@ -83,8 +91,8 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
     }
 
     const pages = [1]
-    const start = Math.max(2, currentPage - 1)
-    const end = Math.min(totalPages - 1, currentPage + 1)
+    const start = Math.max(2, clampedPage - 1)
+    const end = Math.min(totalPages - 1, clampedPage + 1)
 
     if (start > 2) pages.push('ellipsis-left')
     for (let page = start; page <= end; page += 1) pages.push(page)
@@ -92,7 +100,7 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
     pages.push(totalPages)
 
     return pages
-  }, [currentPage, totalPages])
+  }, [clampedPage, totalPages])
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-black/20">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -115,12 +123,12 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
           <thead className="bg-white/5 text-[9px] uppercase tracking-[0.2em] text-slate-400">
             <tr>
               <th className="px-3 py-2">Session</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Courts</th>
-              <th className="px-3 py-2">Players</th>
-              <th className="px-3 py-2">Games</th>
-              <th className="px-3 py-2">Revenue</th>
-              <th className="px-3 py-2">Started</th>
+              <th className="hidden sm:table-cell px-3 py-2">Status</th>
+              <th className="hidden sm:table-cell px-3 py-2">Courts</th>
+              <th className="hidden sm:table-cell px-3 py-2">Players</th>
+              <th className="hidden md:table-cell px-3 py-2">Games</th>
+              <th className="hidden sm:table-cell px-3 py-2">Revenue</th>
+              <th className="hidden md:table-cell px-3 py-2">Started</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
@@ -147,54 +155,95 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
               </tr>
             ) : (
               paginatedSessions.map((session) => (
-                <tr key={session._id} className="transition hover:bg-white/5">
-                  <td className="px-3 py-2">
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => onNavigateToMatches(session)}
-                        className="text-sm font-semibold text-emerald-300 hover:text-emerald-200 hover:underline transition text-left"
-                      >
-                        {session.name}
-                      </button>
-                      
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={session.status} />
-                  </td>
-                  <td className="px-3 py-2">{session.courts?.length ?? 0}</td>
-                  <td className="px-3 py-2">{session.players?.length ?? 0}</td>
-                  <td className="px-3 py-2">{getOngoingMatchCount(session._id, ongoingMatches)}</td>
-                  <td className="px-3 py-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                      {formatCurrency(getSessionRevenue(session, playerParticipationsBySession))}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-xs">{formatDateTime(session.startedAt)}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => onViewSession(session)}
-                        className="inline-flex items-center justify-center rounded-full border border-slate-300/40 px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:bg-slate-500/10 hover:border-slate-200/70"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => onEditSession(session)}
-                        className="inline-flex items-center justify-center rounded-full border border-blue-300/40 px-2 py-0.5 text-[11px] font-semibold text-blue-200 transition hover:bg-blue-500/10 hover:border-blue-200/70"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onEndSession(session)}
-                        disabled={!canEnd(session)}
-                        className="inline-flex items-center justify-center rounded-full border border-rose-300/40 px-2 py-0.5 text-[11px] font-semibold text-rose-200 transition hover:bg-rose-500/10 hover:border-rose-200/70 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        End Session
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <React.Fragment key={session._id}>
+                  <tr className="transition hover:bg-white/5">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-2">
+                          <button
+                            onClick={() => onNavigateToMatches(session)}
+                            className="truncate text-sm font-semibold text-emerald-300 hover:text-emerald-200 hover:underline transition text-left"
+                          >
+                            {session.name}
+                          </button>
+                          <span className="sm:hidden">
+                            <StatusBadge status={session.status} />
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedSessionId((prev) => (prev === session._id ? null : session._id))}
+                          className="text-slate-400 sm:hidden"
+                        >
+                          {expandedSessionId === session._id ? '▼' : '▶'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-2">
+                      <StatusBadge status={session.status} />
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-2">{session.courts?.length ?? 0}</td>
+                    <td className="hidden sm:table-cell px-3 py-2">{session.players?.length ?? 0}</td>
+                    <td className="hidden md:table-cell px-3 py-2">{getOngoingMatchCount(session._id, ongoingMatches)}</td>
+                    <td className="hidden sm:table-cell px-3 py-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                        {formatCurrency(getSessionRevenue(session, playerParticipationsBySession))}
+                      </span>
+                    </td>
+                    <td className="hidden md:table-cell px-3 py-2 text-xs">{formatDateTime(session.startedAt)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => onViewSession(session)}
+                          className="inline-flex items-center justify-center rounded-full border border-slate-300/40 px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:bg-slate-500/10 hover:border-slate-200/70"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => onEditSession(session)}
+                          className="inline-flex items-center justify-center rounded-full border border-blue-300/40 px-2 py-0.5 text-[11px] font-semibold text-blue-200 transition hover:bg-blue-500/10 hover:border-blue-200/70"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => onEndSession(session)}
+                          disabled={!canEnd(session)}
+                          className="inline-flex items-center justify-center rounded-full border border-rose-300/40 px-2 py-0.5 text-[11px] font-semibold text-rose-200 transition hover:bg-rose-500/10 hover:border-rose-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          End Session
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedSessionId === session._id && (
+                    <tr className="bg-slate-800/30 sm:hidden">
+                      <td colSpan={2} className="px-3 py-3">
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Courts:</span>
+                            <span className="text-white">{session.courts?.length ?? 0}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Players:</span>
+                            <span className="text-white">{session.players?.length ?? 0}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Games:</span>
+                            <span className="text-white">{getOngoingMatchCount(session._id, ongoingMatches)}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Revenue:</span>
+                            <span className="text-emerald-200">{formatCurrency(getSessionRevenue(session, playerParticipationsBySession))}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Started:</span>
+                            <span className="text-white">{formatDateTime(session.startedAt)}</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>
@@ -204,12 +253,12 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
       {sessions.length > 0 && (
         <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-slate-400">
-            Page {currentPage} of {totalPages}
+            Page {clampedPage} of {totalPages}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePreviousPage}
-              disabled={currentPage === 1}
+              disabled={clampedPage === 1}
               className="rounded-full border border-slate-300/40 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-500/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Previous
@@ -224,7 +273,7 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
                   )
                 }
 
-                const isActive = item === currentPage
+                const isActive = item === clampedPage
                 return (
                   <button
                     key={`session-page-${item}`}
@@ -242,7 +291,7 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
             </div>
             <button
               onClick={handleNextPage}
-              disabled={currentPage === totalPages}
+              disabled={clampedPage === totalPages}
               className="rounded-full border border-slate-300/40 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-500/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next

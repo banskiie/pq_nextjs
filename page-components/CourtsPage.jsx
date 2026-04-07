@@ -323,6 +323,7 @@ const CourtsPage = () => {
   const [formError, setFormError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [expandedCourtId, setExpandedCourtId] = useState(null)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
 
@@ -560,45 +561,74 @@ const CourtsPage = () => {
               </tr>
             ) : (
               paginated.map((court) => (
-                <tr key={court._id} className="border-b border-white/10 transition hover:bg-white/5">
-                  <td className="px-3.5 py-3 font-medium text-white">
-                    {court.name}
-                  </td>
-                  <td className="hidden px-3.5 py-3 text-slate-300 sm:table-cell">
-                    {formatLabel(court.surfaceType)}
-                  </td>
-                  <td className="hidden px-3.5 py-3 sm:table-cell">
-                    <span className="inline-flex items-center rounded-full bg-slate-800/60 px-2.5 py-0.5 text-xs text-slate-300">
-                      {court.indoor ? 'Indoor' : 'Outdoor'}
-                    </span>
-                  </td>
-                  <td className="px-3.5 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[court.status] || 'bg-slate-700/50 text-slate-300'}`}>
-                      {formatLabel(court.status)}
-                    </span>
-                  </td>
-                  <td className="hidden max-w-55 truncate px-3.5 py-3 text-sm text-slate-400 md:table-cell">
-                    {court.description || '—'}
-                  </td>
-                  <td className="px-3.5 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
+                <React.Fragment key={court._id}>
+                  <tr className="border-b border-white/10 transition hover:bg-white/5">
+                    <td className="px-3.5 py-3 font-medium text-white">
                       <button
                         type="button"
-                        onClick={() => openEdit(court)}
-                        className="inline-flex items-center justify-center rounded bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-200 transition hover:bg-blue-500/30 whitespace-nowrap"
+                        onClick={() => setExpandedCourtId((prev) => (prev === court._id ? null : court._id))}
+                        className="flex w-full items-center justify-between gap-2 text-left"
                       >
-                        Edit
+                        <span>{court.name}</span>
+                        <span className="text-slate-400 sm:hidden">{expandedCourtId === court._id ? '▼' : '▶'}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(court)}
-                        className="inline-flex items-center justify-center rounded bg-rose-500/20 px-2.5 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-500/30 whitespace-nowrap"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="hidden px-3.5 py-3 text-slate-300 sm:table-cell">
+                      {formatLabel(court.surfaceType)}
+                    </td>
+                    <td className="hidden px-3.5 py-3 sm:table-cell">
+                      <span className="inline-flex items-center rounded-full bg-slate-800/60 px-2.5 py-0.5 text-xs text-slate-300">
+                        {court.indoor ? 'Indoor' : 'Outdoor'}
+                      </span>
+                    </td>
+                    <td className="px-3.5 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[court.status] || 'bg-slate-700/50 text-slate-300'}`}>
+                        {formatLabel(court.status)}
+                      </span>
+                    </td>
+                    <td className="hidden max-w-55 truncate px-3.5 py-3 text-sm text-slate-400 md:table-cell">
+                      {court.description || '—'}
+                    </td>
+                    <td className="px-3.5 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(court)}
+                          className="inline-flex items-center justify-center rounded bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-200 transition hover:bg-blue-500/30 whitespace-nowrap"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(court)}
+                          className="inline-flex items-center justify-center rounded bg-rose-500/20 px-2.5 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-500/30 whitespace-nowrap"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedCourtId === court._id && (
+                    <tr className="bg-slate-800/30 sm:hidden">
+                      <td colSpan={3} className="px-3.5 py-3">
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Surface:</span>
+                            <span className="text-white">{formatLabel(court.surfaceType)}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Location:</span>
+                            <span className="text-white">{court.indoor ? 'Indoor' : 'Outdoor'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Description:</span>
+                            <span className="max-w-[60%] text-right text-white">{court.description || '—'}</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>

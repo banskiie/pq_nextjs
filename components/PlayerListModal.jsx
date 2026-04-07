@@ -21,6 +21,7 @@ const PlayerListModal = ({
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptPlayer, setReceiptPlayer] = useState(null)
   const [finishedPlayers, setFinishedPlayers] = useState(new Set())
+  const [expandedPlayerId, setExpandedPlayerId] = useState(null)
 
   const normalizeId = (value) => {
     if (value === null || value === undefined) return ''
@@ -251,49 +252,74 @@ const PlayerListModal = ({
                   <tr>
                     <th className="px-4 py-3">#</th>
                     <th className="px-4 py-3">Player Name</th>
-                    <th className="px-4 py-3 text-center">Match Count</th>
-                    <th className="px-4 py-3 text-center">Pending Payment</th>
+                    <th className="hidden sm:table-cell px-4 py-3 text-center">Match Count</th>
+                    <th className="hidden sm:table-cell px-4 py-3 text-center">Pending Payment</th>
                     <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
                   {filteredPlayerStats.map((player, index) => (
-                    <tr key={player.id} className="transition hover:bg-white/5">
-                      <td className="px-4 py-3 text-slate-400">{index + 1}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-white">{player.name}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span 
-                          className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            player.matchCount > 0
-                              ? 'bg-emerald-500/20 text-emerald-200'
-                              : 'bg-slate-500/20 text-slate-300'
-                          }`}
-                        >
-                          {player.matchCount}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-sm font-semibold text-emerald-200">
-                          {getPlayerTotalPayment(player.id).toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleOpenFinishConfirm(player)}
-                          disabled={isPlayerInActiveMatch(player.id)}
-                          title={isPlayerInActiveMatch(player.id) ? "Player is currently in a match or queue" : ""}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                            isPlayerInActiveMatch(player.id)
-                              ? 'bg-emerald-500/10 text-emerald-200/50 cursor-not-allowed opacity-50'
-                              : 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100'
-                          }`}
-                        >
-                          Finish
-                        </button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={player.id}>
+                      <tr className="transition hover:bg-white/5">
+                        <td className="px-4 py-3 text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPlayerId((prev) => (prev === player.id ? null : player.id))}
+                            className="flex w-full items-center justify-between gap-2 text-left"
+                          >
+                            <span className="font-medium text-white">{player.name}</span>
+                            <span className="text-slate-400 sm:hidden">{expandedPlayerId === player.id ? '▼' : '▶'}</span>
+                          </button>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center">
+                          <span 
+                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                              player.matchCount > 0
+                                ? 'bg-emerald-500/20 text-emerald-200'
+                                : 'bg-slate-500/20 text-slate-300'
+                            }`}
+                          >
+                            {player.matchCount}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center">
+                          <span className="text-sm font-semibold text-emerald-200">
+                            {getPlayerTotalPayment(player.id).toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleOpenFinishConfirm(player)}
+                            disabled={isPlayerInActiveMatch(player.id)}
+                            title={isPlayerInActiveMatch(player.id) ? "Player is currently in a match or queue" : ""}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                              isPlayerInActiveMatch(player.id)
+                                ? 'bg-emerald-500/10 text-emerald-200/50 cursor-not-allowed opacity-50'
+                                : 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100'
+                            }`}
+                          >
+                            Finish
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedPlayerId === player.id && (
+                        <tr className="bg-slate-800/30 sm:hidden">
+                          <td colSpan={5} className="px-4 py-3">
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between border-b border-white/10 pb-2">
+                                <span className="text-slate-400">Match Count:</span>
+                                <span className="text-white">{player.matchCount}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Pending Payment:</span>
+                                <span className="text-emerald-200">{getPlayerTotalPayment(player.id).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

@@ -136,6 +136,7 @@ const SessionRecordDetail = ({ sessionId, onClose }) => {
   const [paymentHistoryPage, setPaymentHistoryPage] = useState(1)
   const [paymentHistorySortColumn, setPaymentHistorySortColumn] = useState('checkoutAt')
   const [paymentHistorySortDirection, setPaymentHistorySortDirection] = useState('desc')
+  const [expandedPaymentRowId, setExpandedPaymentRowId] = useState(null)
   const playersPerPage = 5
   const matchesPerPage = 5
   const paymentHistoryItemsPerPage = 10
@@ -875,25 +876,25 @@ const SessionRecordDetail = ({ sessionId, onClose }) => {
                             Player {paymentHistorySortColumn === 'playerName' ? (paymentHistorySortDirection === 'asc' ? '↑' : '↓') : ''}
                           </th>
                           <th
-                            className="cursor-pointer select-none px-4 py-3 text-center"
+                            className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                             onClick={() => handlePaymentHistorySort('gamesPlayed')}
                           >
                             Games {paymentHistorySortColumn === 'gamesPlayed' ? (paymentHistorySortDirection === 'asc' ? '↑' : '↓') : ''}
                           </th>
                           <th
-                            className="cursor-pointer select-none px-4 py-3 text-center"
+                            className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                             onClick={() => handlePaymentHistorySort('amountDue')}
                           >
                             Amount Due {paymentHistorySortColumn === 'amountDue' ? (paymentHistorySortDirection === 'asc' ? '↑' : '↓') : ''}
                           </th>
                           <th
-                            className="cursor-pointer select-none px-4 py-3 text-center"
+                            className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                             onClick={() => handlePaymentHistorySort('status')}
                           >
                             Status {paymentHistorySortColumn === 'status' ? (paymentHistorySortDirection === 'asc' ? '↑' : '↓') : ''}
                           </th>
                           <th
-                            className="cursor-pointer select-none px-4 py-3"
+                            className="hidden sm:table-cell cursor-pointer select-none px-4 py-3"
                             onClick={() => handlePaymentHistorySort('checkoutAt')}
                           >
                             Checkout Time {paymentHistorySortColumn === 'checkoutAt' ? (paymentHistorySortDirection === 'asc' ? '↑' : '↓') : ''}
@@ -901,30 +902,68 @@ const SessionRecordDetail = ({ sessionId, onClose }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10">
-                        {paginatedPaymentHistoryRows.map((row, index) => (
-                          <tr key={`${row.playerId}-${index}`} className="transition hover:bg-white/5">
-                            <td className="px-4 py-3 text-slate-400">{(paymentHistoryPage - 1) * paymentHistoryItemsPerPage + index + 1}</td>
-                            <td className="px-4 py-3 font-medium text-white">{row.playerName}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="inline-flex items-center justify-center rounded-full bg-slate-500/20 px-3 py-1 text-xs font-semibold text-slate-200">
-                                {row.gamesPlayed}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center font-semibold text-emerald-200">₱{row.amountDue.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span
-                                className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                  row.status === 'PAID'
-                                    ? 'bg-emerald-500/20 text-emerald-200'
-                                    : 'bg-orange-500/20 text-orange-200'
-                                }`}
-                              >
-                                {row.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-300">{formatDateTime(row.checkoutAt)}</td>
-                          </tr>
-                        ))}
+                        {paginatedPaymentHistoryRows.map((row, index) => {
+                          const rowKey = `${row.playerId}-${index}`
+                          return (
+                            <React.Fragment key={rowKey}>
+                              <tr className="transition hover:bg-white/5">
+                                <td className="px-4 py-3 text-slate-400">{(paymentHistoryPage - 1) * paymentHistoryItemsPerPage + index + 1}</td>
+                                <td className="px-4 py-3 font-medium text-white">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedPaymentRowId((prev) => (prev === rowKey ? null : rowKey))}
+                                    className="flex w-full items-center justify-between gap-2 text-left"
+                                  >
+                                    <span>{row.playerName}</span>
+                                    <span className="text-slate-400 sm:hidden">{expandedPaymentRowId === rowKey ? '▼' : '▶'}</span>
+                                  </button>
+                                </td>
+                                <td className="hidden sm:table-cell px-4 py-3 text-center">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-slate-500/20 px-3 py-1 text-xs font-semibold text-slate-200">
+                                    {row.gamesPlayed}
+                                  </span>
+                                </td>
+                                <td className="hidden sm:table-cell px-4 py-3 text-center font-semibold text-emerald-200">₱{row.amountDue.toFixed(2)}</td>
+                                <td className="hidden sm:table-cell px-4 py-3 text-center">
+                                  <span
+                                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      row.status === 'PAID'
+                                        ? 'bg-emerald-500/20 text-emerald-200'
+                                        : 'bg-orange-500/20 text-orange-200'
+                                    }`}
+                                  >
+                                    {row.status}
+                                  </span>
+                                </td>
+                                <td className="hidden sm:table-cell px-4 py-3 text-slate-300">{formatDateTime(row.checkoutAt)}</td>
+                              </tr>
+                              {expandedPaymentRowId === rowKey && (
+                                <tr className="bg-slate-800/30 sm:hidden">
+                                  <td colSpan={6} className="px-4 py-3">
+                                    <div className="space-y-2 text-xs">
+                                      <div className="flex justify-between border-b border-white/10 pb-2">
+                                        <span className="text-slate-400">Games:</span>
+                                        <span className="text-white">{row.gamesPlayed}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/10 pb-2">
+                                        <span className="text-slate-400">Amount Due:</span>
+                                        <span className="text-emerald-200">₱{row.amountDue.toFixed(2)}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/10 pb-2">
+                                        <span className="text-slate-400">Status:</span>
+                                        <span className="text-white">{row.status}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">Checkout Time:</span>
+                                        <span className="text-white">{formatDateTime(row.checkoutAt)}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

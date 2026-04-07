@@ -132,6 +132,7 @@ const RecordsPage = () => {
   const [sortColumn, setSortColumn] = useState('startedAt')
   const [dateFilter, setDateFilter] = useState('')
   const [selectedSessions, setSelectedSessions] = useState([])
+  const [expandedRecordId, setExpandedRecordId] = useState(null)
   const [viewingSessionId, setViewingSessionId] = useState(null)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [archivePendingIds, setArchivePendingIds] = useState([])
@@ -501,22 +502,22 @@ const RecordsPage = () => {
                   Session Name{getSortIndicator('sessionName')}
                 </button>
               </th>
-              <th className="px-3 py-3">
+              <th className="hidden sm:table-cell px-3 py-3">
                 <button type="button" onClick={() => handleHeaderSort('playCount')} className="font-semibold text-slate-400 hover:text-white">
                   Play Count{getSortIndicator('playCount')}
                 </button>
               </th>
-              <th className="px-3 py-3">
+              <th className="hidden sm:table-cell px-3 py-3">
                 <button type="button" onClick={() => handleHeaderSort('playerCount')} className="font-semibold text-slate-400 hover:text-white">
                   Players{getSortIndicator('playerCount')}
                 </button>
               </th>
-              <th className="px-3 py-3">
+              <th className="hidden sm:table-cell px-3 py-3">
                 <button type="button" onClick={() => handleHeaderSort('courtCount')} className="font-semibold text-slate-400 hover:text-white">
                   Courts{getSortIndicator('courtCount')}
                 </button>
               </th>
-              <th className="px-3 py-3">
+              <th className="hidden md:table-cell px-3 py-3">
                 <button type="button" onClick={() => handleHeaderSort('startedAt')} className="font-semibold text-slate-400 hover:text-white">
                   Duration{getSortIndicator('startedAt')}
                 </button>
@@ -533,52 +534,84 @@ const RecordsPage = () => {
               </tr>
             ) : (
               filteredSessions.map((record) => (
-                <tr
-                  key={record.sessionId}
-                  className={`transition ${selectedSessions.includes(record.sessionId) ? 'bg-white/10' : 'hover:bg-white/5'}`}
-                >
-                  <td className="px-3 py-3">
-                    <div className="flex items-center justify-center">
-                      <input
-                        id={`records-select-${record.sessionId}`}
-                        name="recordsSelectedSessions"
-                        type="checkbox"
-                        checked={selectedSessions.includes(record.sessionId)}
-                        onChange={() => toggleSessionSelection(record.sessionId)}
-                        className="h-4 w-4 rounded border-white/30 bg-transparent text-emerald-400 focus:ring-emerald-500/40"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="font-semibold text-white text-xs">{record.sessionName}</span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                      {record.playCount} {record.playCount === 1 ? 'match' : 'matches'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold text-blue-200">
-                      {record.playerCount} {record.playerCount === 1 ? 'player' : 'players'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
-                      {record.courtCount} {record.courtCount === 1 ? 'court' : 'courts'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-xs text-slate-300">
-                    {formatTimeRange(record.startedAt, record.endedAt)}
-                  </td>
-                  <td className="px-3 py-3">
-                    <button
-                      onClick={() => setViewingSessionId(record.sessionId)}
-                      className="inline-flex items-center justify-center rounded-full border border-slate-300/40 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-500/10 hover:border-slate-200/70"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
+                <React.Fragment key={record.sessionId}>
+                  <tr
+                    className={`transition ${selectedSessions.includes(record.sessionId) ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                  >
+                    <td className="px-3 py-3">
+                      <div className="flex items-center justify-center">
+                        <input
+                          id={`records-select-${record.sessionId}`}
+                          name="recordsSelectedSessions"
+                          type="checkbox"
+                          checked={selectedSessions.includes(record.sessionId)}
+                          onChange={() => toggleSessionSelection(record.sessionId)}
+                          className="h-4 w-4 rounded border-white/30 bg-transparent text-emerald-400 focus:ring-emerald-500/40"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRecordId((prev) => (prev === record.sessionId ? null : record.sessionId))}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <span className="font-semibold text-white text-xs">{record.sessionName}</span>
+                        <span className="text-slate-400 sm:hidden">{expandedRecordId === record.sessionId ? '▼' : '▶'}</span>
+                      </button>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                        {record.playCount} {record.playCount === 1 ? 'match' : 'matches'}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold text-blue-200">
+                        {record.playerCount} {record.playerCount === 1 ? 'player' : 'players'}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                        {record.courtCount} {record.courtCount === 1 ? 'court' : 'courts'}
+                      </span>
+                    </td>
+                    <td className="hidden md:table-cell px-3 py-3 text-xs text-slate-300">
+                      {formatTimeRange(record.startedAt, record.endedAt)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        onClick={() => setViewingSessionId(record.sessionId)}
+                        className="inline-flex items-center justify-center rounded-full border border-slate-300/40 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-500/10 hover:border-slate-200/70"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedRecordId === record.sessionId && (
+                    <tr className="bg-slate-800/30 sm:hidden">
+                      <td colSpan={3} className="px-3 py-3">
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Play Count:</span>
+                            <span className="text-white">{record.playCount}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Players:</span>
+                            <span className="text-white">{record.playerCount}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Courts:</span>
+                            <span className="text-white">{record.courtCount}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Duration:</span>
+                            <span className="text-white">{formatTimeRange(record.startedAt, record.endedAt)}</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>

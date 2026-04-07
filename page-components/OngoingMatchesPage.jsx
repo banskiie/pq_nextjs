@@ -110,45 +110,38 @@ const OngoingMatchesPage = ({
 
   return (
     <div className="space-y-6 py-5">
-      <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-6">
-        <span className="text-sm text-slate-400">Filter:</span>
-        <select
-          id="ongoing-session-filter"
-          name="ongoingSessionFilter"
-          value={effectiveSessionFilterId}
-          onChange={(e) => handleSessionFilterChange(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-white/30 focus:outline-none"
-        >
-          <option value="" className='text-black'>All Sessions</option>
-          {openSessions.map((session) => (
-            <option className='text-black' key={session._id} value={session._id}>
-              {session.name}
-            </option>
-          ))}
-        </select>
-        {activeFilterSessionId && filteredSession && (
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs">
-            <span className="text-emerald-200">{filteredSession.name}</span>
-            <button
-              onClick={handleClearAllSessionFilters}
-              className="text-emerald-300 hover:text-emerald-100 transition"
+      <div className="mb-6 space-y-3 border-b border-white/10 pb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="text-sm text-slate-400">Filter:</span>
+            <select
+              id="ongoing-session-filter"
+              name="ongoingSessionFilter"
+              value={effectiveSessionFilterId}
+              onChange={(e) => handleSessionFilterChange(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none sm:w-auto sm:min-w-56"
             >
-              ✕
-            </button>
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={handleOpenMatchRecord}
-          disabled={openSessionIds.length === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-40"
-          title={openSessionIds.length > 0 ? 'Open match histpry' : 'No open sessions available'}
-        >
-          <span>Match History</span>
-          <span className="rounded-full bg-blue-500/30 px-2 py-0.5 text-[10px] text-blue-100">
-            {isMatchRecordLoading ? '...' : matchRecordCount}
-          </span>
-        </button>
+              <option value="" className='text-black'>All Sessions</option>
+              {openSessions.map((session) => (
+                <option className='text-black' key={session._id} value={session._id}>
+                  {session.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenMatchRecord}
+            disabled={openSessionIds.length === 0}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            title={openSessionIds.length > 0 ? 'Open match history' : 'No open sessions available'}
+          >
+            <span>Match History</span>
+            <span className="rounded-full bg-blue-500/30 px-2 py-0.5 text-[10px] text-blue-100">
+              {isMatchRecordLoading ? '...' : matchRecordCount}
+            </span>
+          </button>
+        </div>
       </div>
 
       <OngoingMatchesTable

@@ -333,7 +333,7 @@ const MassAddPlayersModal = ({
                 name="playerNamesText"
                 value={textarea}
                 onChange={(e) => setTextarea(e.target.value)}
-                placeholder="Paste player names&#10;One per line&#10;&#10;Example:&#10;John Smith&#10;Mark Johnson&#10;Luke Wilson"
+                placeholder={'Paste player names\nOne per line\n\nExample:\nJohn Smith\nMark Johnson\nLuke Wilson'}
                 className="w-full h-40 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 focus:border-white/30 focus:outline-none resize-none"
                 disabled={isSubmitting}
               />

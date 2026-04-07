@@ -427,10 +427,6 @@ const EditMatchForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!courtId) {
-      alert('Please select a court')
-      return
-    }
     if (!isValidTeamConfiguration()) {
       alert('Teams must be balanced: 1v1 (1 player per team) or 2v2 (2 players per team)')
       return
@@ -441,7 +437,7 @@ const EditMatchForm = ({
   const handleConfirmSubmit = () => {
     const playerIds = [...team1, ...team2]
     onSubmit({
-      courtId,
+      courtId: effectiveCourtId,
       playerIds
     })
     setShowConfirm(false)
@@ -473,6 +469,30 @@ const EditMatchForm = ({
   const courtsInSession = selectedSession?.courts
     ? courts.filter((court) => selectedSession.courts.includes(court._id))
     : []
+  const sessionOngoingMatches = ongoingMatches?.[selectedSessionId] || []
+  const sessionQueuedMatches = matchQueue?.[selectedSessionId] || []
+  const occupiedCourtIdSet = new Set(
+    sessionOngoingMatches
+      .filter((sessionMatch) => String(sessionMatch?._id) !== String(match?._id))
+      .map((sessionMatch) => sessionMatch?.courtId)
+      .filter(Boolean)
+      .map(String)
+  )
+  const reservedQueuedCourtIdSet = new Set(
+    sessionQueuedMatches
+      .filter((sessionMatch) => String(sessionMatch?._id) !== String(match?._id))
+      .map((sessionMatch) => sessionMatch?.courtId)
+      .filter(Boolean)
+      .map(String)
+  )
+  const autoAssignedCourtId = !courtId
+    ? courtsInSession.find(
+        (availableCourt) =>
+          !occupiedCourtIdSet.has(String(availableCourt._id)) &&
+          !reservedQueuedCourtIdSet.has(String(availableCourt._id))
+      )?._id || null
+    : null
+  const effectiveCourtId = courtId || autoAssignedCourtId || match?.courtId || null
   const sessionPlayerIds = new Set(selectedSession?.players?.map((sessionPlayer) => sessionPlayer.playerId) || [])
   const playersInSession = selectedSession?.players
     ? selectedSession.players
@@ -874,7 +894,8 @@ const EditMatchForm = ({
                 <h4 className="mb-1.5 text-xs font-semibold text-white">Match Details</h4>
                 <div className="space-y-1.5 text-xs text-slate-300">
                   <div>
-                    <strong>Court:</strong> {getCourtName(courtId)}
+                    <strong>Court:</strong> {effectiveCourtId ? getCourtName(effectiveCourtId) : 'Not assigned'}
+                    {!courtId && autoAssignedCourtId && <span className="ml-1 text-slate-400">(auto-assigned)</span>}
                   </div>
                   <div>
                     <strong>Format:</strong> {getFormat()}
@@ -933,7 +954,7 @@ const EditMatchForm = ({
                     onChange={(e) => setCourtId(e.target.value)}
                     className="w-full rounded border border-white/10 bg-slate-800 px-2 py-1 text-xs text-white focus:border-white/30 focus:outline-none"
                   >
-                    <option value="">Choose a court...</option>
+                    <option value="">Any available court (auto-assign)</option>
                     {[...courtsInSession].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })).map((court) => (
                       <option key={court._id} value={court._id}>
                         {court.name} ({formatCourtStatus(court.status)})
@@ -1366,7 +1387,7 @@ const EditMatchForm = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading || !courtId || !isValidTeamConfiguration()}
+                  disabled={isLoading || !isValidTeamConfiguration()}
                   className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
                 >
                   {isLoading ? 'Updating...' : 'Continue'}

@@ -914,15 +914,30 @@ const CreateMatchForm = ({
 
   // Check if court/players are available or queued
   const allPlayers = [...team1, ...team2];
-  const courtBusy = sessionAllMatches.some((m) => m.courtId === selectedCourt);
+  const courtBusy = selectedCourt
+    ? sessionAllMatches.some((m) => m.courtId === selectedCourt)
+    : false;
   const playersInUse = sessionAllMatches.some((m) =>
     allPlayers.some((p) => m.playerIds?.includes(p))
   );
-  // No court selected = always queued (auto-assigned to next free court)
-  const isQueued = !selectedCourt || courtBusy || playersInUse;
+  const occupiedCourtIdSet = new Set(
+    (sessionOngoingMatches || []).map((m) => m?.courtId).filter(Boolean).map(String)
+  );
+  const reservedQueuedCourtIdSet = new Set(
+    (sessionQueuedMatches || []).map((m) => m?.courtId).filter(Boolean).map(String)
+  );
+  const autoAssignedCourtId = !selectedCourt
+    ? courts.find(
+        (court) =>
+          !occupiedCourtIdSet.has(String(court._id)) &&
+          !reservedQueuedCourtIdSet.has(String(court._id))
+      )?._id || null
+    : null;
+  const effectiveCourtId = selectedCourt || autoAssignedCourtId || null;
+  const isQueued = playersInUse || (selectedCourt ? courtBusy : !autoAssignedCourtId);
   
-  const getCourtName = () => {
-    return allCourts.find((c) => c._id === selectedCourt)?.name || "Unknown";
+  const getCourtName = (courtId) => {
+    return allCourts.find((c) => c._id === courtId)?.name || "Unknown";
   };
 
   const handleSubmitClick = (e) => {
@@ -931,7 +946,7 @@ const CreateMatchForm = ({
 
     const matchData = {
       sessionId: selectedSessionId,
-      courtId: selectedCourt || null,
+      courtId: effectiveCourtId,
       playerIds: allPlayers,
       queued: isQueued,
     };
@@ -1006,14 +1021,14 @@ const CreateMatchForm = ({
           <div className="space-y-3">
             <div className="rounded border border-yellow-300/30 bg-yellow-500/10 p-2.5">
               <h3 className="mb-1 text-sm font-semibold text-yellow-200">
-                  {!selectedCourt
+                  {!selectedCourt && !autoAssignedCourtId
                     ? "⏳ Queued — court will be auto-assigned"
                     : isQueued
                     ? "⏳ Match will be Queued"
                     : "✓ Match will start immediately"}
               </h3>
               <p className="text-xs text-slate-300">
-                  {!selectedCourt
+                  {!selectedCourt && !autoAssignedCourtId
                     ? "No court selected. This match will be queued and automatically assigned to the next available court in this session."
                     : isQueued
                     ? "The court or players are currently busy. This match will be added to the queue."
@@ -1028,8 +1043,9 @@ const CreateMatchForm = ({
                   <strong>Session:</strong> {selectedSession?.name}
                 </div>
                 <div>
-                  <strong>Court:</strong> {getCourtName()}
-                  {!selectedCourt && <span className="ml-1 text-slate-400">(auto-assign)</span>}
+                  <strong>Court:</strong> {getCourtName(effectiveCourtId)}
+                  {!selectedCourt && autoAssignedCourtId && <span className="ml-1 text-slate-400">(auto-assigned)</span>}
+                  {!selectedCourt && !autoAssignedCourtId && <span className="ml-1 text-slate-400">(auto-assign when available)</span>}
                 </div>
                 <div>
                   <strong>Format:</strong> {matchType}

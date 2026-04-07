@@ -59,6 +59,8 @@ const PaymentsPage = ({
   const [sortDirection, setSortDirection] = useState('desc')
   const [historySortColumn, setHistorySortColumn] = useState('checkoutAt')
   const [historySortDirection, setHistorySortDirection] = useState('desc')
+  const [expandedPaymentPlayerId, setExpandedPaymentPlayerId] = useState(null)
+  const [expandedHistoryRowId, setExpandedHistoryRowId] = useState(null)
   const isAnyPaymentsModalOpen = Boolean(
     selectedPlayerForFinish ||
     showNoPaymentConfirm ||
@@ -748,13 +750,13 @@ const PaymentsPage = ({
                   Player Name {sortColumn === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                 </th>
                 <th
-                  className="px-4 py-3 text-center cursor-pointer select-none"
+                  className="hidden sm:table-cell px-4 py-3 text-center cursor-pointer select-none"
                   onClick={() => handleSort('matchCount')}
                 >
                   Match Count {sortColumn === 'matchCount' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                 </th>
                 <th
-                  className="px-4 py-3 text-center cursor-pointer select-none"
+                  className="hidden sm:table-cell px-4 py-3 text-center cursor-pointer select-none"
                   onClick={() => handleSort('pendingPayment')}
                 >
                   Pending Payment {sortColumn === 'pendingPayment' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
@@ -764,58 +766,83 @@ const PaymentsPage = ({
             </thead>
             <tbody className="divide-y divide-white/10">
               {paginatedPlayerStats.map((player, index) => (
-                <tr key={player.id} className="transition hover:bg-white/5">
-                  <td className="px-4 py-3">
-                    <input
-                      id={`payments-select-${player.id}`}
-                      name="paymentsSelectedPlayers"
-                      type="checkbox"
-                      checked={selectedPlayersForBatch.has(player.id)}
-                      onChange={() => handleTogglePlayerSelection(player.id)}
-                      disabled={isPlayerInActiveMatch(player.id)}
-                      title={isPlayerInActiveMatch(player.id) ? 'Player is currently in a match or queue' : ''}
-                      className="h-4 w-4 rounded border-white/20 bg-white/10 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-slate-400">{startIndex + index + 1}</td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-white">{player.name?.toUpperCase()}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
-                        player.matchCount > 0
-                          ? 'bg-emerald-500/20 text-emerald-200'
-                          : 'bg-slate-500/20 text-slate-300'
-                      }`}
-                    >
-                      {player.matchCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-semibold text-emerald-200">
-                      ₱{getPlayerTotalPayment(player.id).toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => {
-                        const paymentSummary = buildPaymentSummary(player.id)
-                        setPaymentGamesInput(String(paymentSummary.totalGames || 0))
-                        setSelectedPlayerForFinish({ ...player, paymentSummary })
-                      }}
-                      disabled={isPlayerInActiveMatch(player.id)}
-                      title={isPlayerInActiveMatch(player.id) ? 'Player is currently in a match or queue' : ''}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                        isPlayerInActiveMatch(player.id)
-                          ? 'bg-emerald-500/10 text-emerald-200/50 cursor-not-allowed opacity-50'
-                          : 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100'
-                      }`}
-                    >
-                      Player Checkout
-                    </button>
-                  </td>
-                </tr>
+                <React.Fragment key={player.id}>
+                  <tr className="transition hover:bg-white/5">
+                    <td className="px-4 py-3">
+                      <input
+                        id={`payments-select-${player.id}`}
+                        name="paymentsSelectedPlayers"
+                        type="checkbox"
+                        checked={selectedPlayersForBatch.has(player.id)}
+                        onChange={() => handleTogglePlayerSelection(player.id)}
+                        disabled={isPlayerInActiveMatch(player.id)}
+                        title={isPlayerInActiveMatch(player.id) ? 'Player is currently in a match or queue' : ''}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">{startIndex + index + 1}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPaymentPlayerId((prev) => (prev === player.id ? null : player.id))}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <span className="font-medium text-white">{player.name?.toUpperCase()}</span>
+                        <span className="text-slate-400 sm:hidden">{expandedPaymentPlayerId === player.id ? '▼' : '▶'}</span>
+                      </button>
+                    </td>
+                    <td className="hidden sm:table-cell px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                          player.matchCount > 0
+                            ? 'bg-emerald-500/20 text-emerald-200'
+                            : 'bg-slate-500/20 text-slate-300'
+                        }`}
+                      >
+                        {player.matchCount}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-4 py-3 text-center">
+                      <span className="text-sm font-semibold text-emerald-200">
+                        ₱{getPlayerTotalPayment(player.id).toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => {
+                          const paymentSummary = buildPaymentSummary(player.id)
+                          setPaymentGamesInput(String(paymentSummary.totalGames || 0))
+                          setSelectedPlayerForFinish({ ...player, paymentSummary })
+                        }}
+                        disabled={isPlayerInActiveMatch(player.id)}
+                        title={isPlayerInActiveMatch(player.id) ? 'Player is currently in a match or queue' : ''}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                          isPlayerInActiveMatch(player.id)
+                            ? 'bg-emerald-500/10 text-emerald-200/50 cursor-not-allowed opacity-50'
+                            : 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 hover:text-emerald-100'
+                        }`}
+                      >
+                        Player Checkout
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedPaymentPlayerId === player.id && (
+                    <tr className="bg-slate-800/30 sm:hidden">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="text-slate-400">Match Count:</span>
+                            <span className="text-white">{player.matchCount}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Pending Payment:</span>
+                            <span className="text-emerald-200">₱{getPlayerTotalPayment(player.id).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -903,25 +930,25 @@ const PaymentsPage = ({
                     Session {historySortColumn === 'sessionName' ? (historySortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th
-                    className="cursor-pointer select-none px-4 py-3 text-center"
+                    className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                     onClick={() => handleHistorySort('gamesPlayed')}
                   >
                     Games {historySortColumn === 'gamesPlayed' ? (historySortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th
-                    className="cursor-pointer select-none px-4 py-3 text-center"
+                    className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                     onClick={() => handleHistorySort('total')}
                   >
                     Amount Due {historySortColumn === 'total' ? (historySortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th
-                    className="cursor-pointer select-none px-4 py-3 text-center"
+                    className="hidden sm:table-cell cursor-pointer select-none px-4 py-3 text-center"
                     onClick={() => handleHistorySort('status')}
                   >
                     Status {historySortColumn === 'status' ? (historySortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th
-                    className="cursor-pointer select-none px-4 py-3"
+                    className="hidden sm:table-cell cursor-pointer select-none px-4 py-3"
                     onClick={() => handleHistorySort('checkoutAt')}
                   >
                     Checkout Time {historySortColumn === 'checkoutAt' ? (historySortDirection === 'asc' ? '↑' : '↓') : ''}
@@ -931,31 +958,66 @@ const PaymentsPage = ({
               <tbody className="divide-y divide-white/10">
                 {paginatedPaymentsHistoryRows.length > 0 ? (
                   paginatedPaymentsHistoryRows.map((row, index) => (
-                    <tr key={row.id} className="transition hover:bg-white/5">
-                      <td className="px-4 py-3 text-slate-400">{historyStartIndex + index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-white">{row.playerName}</td>
-                      <td className="px-4 py-3">{row.sessionName}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center justify-center rounded-full bg-slate-500/20 px-3 py-1 text-xs font-semibold text-slate-200">
-                          {row.gamesPlayed}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center font-semibold text-emerald-200">{formatCurrency(row.total)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            row.status === 'PAID'
-                              ? 'bg-emerald-500/20 text-emerald-200'
-                              : row.status === 'UNPAID'
-                                ? 'bg-orange-500/20 text-orange-200'
-                                : 'bg-amber-500/20 text-amber-200'
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">{formatDateTime(row.checkoutAt)}</td>
-                    </tr>
+                    <React.Fragment key={row.id}>
+                      <tr className="transition hover:bg-white/5">
+                        <td className="px-4 py-3 text-slate-400">{historyStartIndex + index + 1}</td>
+                        <td className="px-4 py-3 font-medium text-white">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedHistoryRowId((prev) => (prev === row.id ? null : row.id))}
+                            className="flex w-full items-center justify-between gap-2 text-left"
+                          >
+                            <span>{row.playerName}</span>
+                            <span className="text-slate-400 sm:hidden">{expandedHistoryRowId === row.id ? '▼' : '▶'}</span>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">{row.sessionName}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center">
+                          <span className="inline-flex items-center justify-center rounded-full bg-slate-500/20 px-3 py-1 text-xs font-semibold text-slate-200">
+                            {row.gamesPlayed}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center font-semibold text-emerald-200">{formatCurrency(row.total)}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                              row.status === 'PAID'
+                                ? 'bg-emerald-500/20 text-emerald-200'
+                                : row.status === 'UNPAID'
+                                  ? 'bg-orange-500/20 text-orange-200'
+                                  : 'bg-amber-500/20 text-amber-200'
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-slate-300">{formatDateTime(row.checkoutAt)}</td>
+                      </tr>
+                      {expandedHistoryRowId === row.id && (
+                        <tr className="bg-slate-800/30 sm:hidden">
+                          <td colSpan={7} className="px-4 py-3">
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between border-b border-white/10 pb-2">
+                                <span className="text-slate-400">Games:</span>
+                                <span className="text-white">{row.gamesPlayed}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-white/10 pb-2">
+                                <span className="text-slate-400">Amount Due:</span>
+                                <span className="text-emerald-200">{formatCurrency(row.total)}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-white/10 pb-2">
+                                <span className="text-slate-400">Status:</span>
+                                <span className="text-white">{row.status}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Checkout Time:</span>
+                                <span className="text-white">{formatDateTime(row.checkoutAt)}</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))
                 ) : (
                   <tr>

@@ -20,6 +20,7 @@ const formatDateTime = (value) => {
 
 const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch, onCancelMatch, paginationResetKey }) => {
   const [currentPage, setCurrentPage] = useState(1)
+  const [expandedMatchId, setExpandedMatchId] = useState(null)
   const [sortColumn, setSortColumn] = useState(null)
   const [sortDirection, setSortDirection] = useState('asc')
   const matchesPerPage = 3
@@ -214,22 +215,22 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
                   Session <span>{getSortIndicator('session')}</span>
                 </button>
               </th>
-              <th className="px-5 py-4">
+              <th className="hidden sm:table-cell px-5 py-4">
                 <button type="button" onClick={() => handleSort('court')} className="flex items-center gap-1 hover:text-white">
                   Court <span>{getSortIndicator('court')}</span>
                 </button>
               </th>
-              <th className="px-5 py-4">
+              <th className="hidden md:table-cell px-5 py-4">
                 <button type="button" onClick={() => handleSort('players')} className="flex items-center gap-1 hover:text-white">
                   Players <span>{getSortIndicator('players')}</span>
                 </button>
               </th>
-              <th className="px-5 py-4">
+              <th className="hidden sm:table-cell px-5 py-4">
                 <button type="button" onClick={() => handleSort('format')} className="flex items-center gap-1 hover:text-white">
                   Format <span>{getSortIndicator('format')}</span>
                 </button>
               </th>
-              <th className="px-5 py-4">
+              <th className="hidden sm:table-cell px-5 py-4">
                 <button type="button" onClick={() => handleSort('queuedAt')} className="flex items-center gap-1 hover:text-white">
                   Queued At <span>{getSortIndicator('queuedAt')}</span>
                 </button>
@@ -239,43 +240,73 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
           </thead>
           <tbody className="divide-y divide-white/10">
             {paginatedMatches.map((match) => (
-              <tr key={match._id} className="transition hover:bg-white/5">
-                <td className="px-5 py-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-200">
-                    <span className="h-2 w-2 rounded-full bg-purple-400"></span>
-                    Queue #{match.queuePosition}
-                  </div>
-                </td>
-                <td className="px-5 py-4">
-                  <span className="font-semibold text-white">{match.sessionName}</span>
-                </td>
-                <td className="px-5 py-4">{getCourtName(match.courtId)}</td>
-                <td className="px-5 py-4 uppercase">{getPlayerNames(match.playerIds)}</td>
-                <td className="px-5 py-4">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/20 px-2 py-1 text-xs font-semibold text-slate-200">
-                    {getFormat(match.playerIds)}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-slate-300">{formatDateTime(match.createdAt)}</td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2">
+              <React.Fragment key={match._id}>
+                <tr className="transition hover:bg-white/5">
+                  <td className="px-5 py-4">
                     <button
-                      onClick={() => onEditMatch && onEditMatch(match)}
-                      className="rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/30 hover:text-blue-100"
-                      title="Edit match"
+                      type="button"
+                      onClick={() => setExpandedMatchId((prev) => (prev === match._id ? null : match._id))}
+                      className="flex w-full items-center justify-between gap-2 text-left"
                     >
-                      Edit
+                      <div className="inline-flex items-center gap-2 rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-200">
+                        <span className="h-2 w-2 rounded-full bg-purple-400"></span>
+                        Queue #{match.queuePosition}
+                      </div>
+                      <span className="text-slate-400 sm:hidden">{expandedMatchId === match._id ? '▼' : '▶'}</span>
                     </button>
-                    <button
-                      onClick={() => onCancelMatch && onCancelMatch(match)}
-                      className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 hover:text-red-100"
-                      title="Cancel match"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="font-semibold text-white">{match.sessionName}</span>
+                    <div className="mt-1 text-[11px] text-slate-400 sm:hidden">{getCourtName(match.courtId)}</div>
+                  </td>
+                  <td className="hidden sm:table-cell px-5 py-4">{getCourtName(match.courtId)}</td>
+                  <td className="hidden md:table-cell px-5 py-4 uppercase">{getPlayerNames(match.playerIds)}</td>
+                  <td className="hidden sm:table-cell px-5 py-4">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/20 px-2 py-1 text-xs font-semibold text-slate-200">
+                      {getFormat(match.playerIds)}
+                    </span>
+                  </td>
+                  <td className="hidden sm:table-cell px-5 py-4 text-slate-300">{formatDateTime(match.createdAt)}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onEditMatch && onEditMatch(match)}
+                        className="rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/30 hover:text-blue-100"
+                        title="Edit match"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onCancelMatch && onCancelMatch(match)}
+                        className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/30 hover:text-red-100"
+                        title="Cancel match"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {expandedMatchId === match._id && (
+                  <tr className="bg-slate-800/30 sm:hidden">
+                    <td colSpan={3} className="px-5 py-3">
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between border-b border-white/10 pb-2">
+                          <span className="text-slate-400">Players:</span>
+                          <span className="text-white">{(match.playerIds || []).map((playerId) => players?.find((player) => player._id === playerId)?.name || 'Unknown').join(' vs ')}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-white/10 pb-2">
+                          <span className="text-slate-400">Format:</span>
+                          <span className="text-white">{getFormat(match.playerIds)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Queued At:</span>
+                          <span className="text-white">{formatDateTime(match.createdAt)}</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
