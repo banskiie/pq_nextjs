@@ -681,9 +681,6 @@
   .w-\[min\(90vw\,22rem\)\] {
     width: min(90vw, 22rem);
   }
-  .w-fit {
-    width: fit-content;
-  }
   .w-full {
     width: 100%;
   }
@@ -3243,6 +3240,21 @@
   .disabled\:opacity-50 {
     &:disabled {
       opacity: 50%;
+    }
+  }
+  .max-\[480px\]\:hidden {
+    @media (width < 480px) {
+      display: none;
+    }
+  }
+  .max-\[480px\]\:inline {
+    @media (width < 480px) {
+      display: inline;
+    }
+  }
+  .max-\[480px\]\:table-row {
+    @media (width < 480px) {
+      display: table-row;
     }
   }
   .sm\:top-2 {

@@ -142,8 +142,6 @@ const WaitingRoomPage = () => {
   const [playersState, setPlayersState] = useState([])
   const [activePage, setActivePage] = useState(0)
   const [queuePage, setQueuePage] = useState(0)
-  const [expandedActiveMatchId, setExpandedActiveMatchId] = useState(null)
-  const [expandedQueueMatchId, setExpandedQueueMatchId] = useState(null)
   const hasMatchesRef = useRef(false)
   const ITEMS_PER_PAGE = 3
 
@@ -539,7 +537,7 @@ const WaitingRoomPage = () => {
           {/* Active Matches Table */}
           <div className="flex flex-col flex-1 min-h-0 min-w-0">
             <div className="flex justify-between items-center mb-3 min-w-0">
-              <h3 className="text-lg font-semibold text-white truncate">Active ({allMatches.length})</h3>
+              <h3 className="text-lg font-semibold text-white truncate">Active / Ongoing ({allMatches.length})</h3>
               {allMatches.length > ITEMS_PER_PAGE && (
                 <div className="text-xs text-slate-400">
                   Page {clampedActivePage + 1} of {totalActivePages}
@@ -561,9 +559,9 @@ const WaitingRoomPage = () => {
                       <tr className="border-b border-white/10">
                         <th className="text-left px-3 py-3 font-semibold text-slate-300 w-8">#</th>
                         <th className="text-left px-3 py-3 font-semibold text-slate-300 w-24">Court</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300">Team 1</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300">Team 2</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300 w-18 whitespace-nowrap">Type</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300">Team 1</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300">Team 2</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300 w-18 whitespace-nowrap">Type</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -575,21 +573,19 @@ const WaitingRoomPage = () => {
                         const team2Players = playerIds.slice(midpoint).map(pid => players.find(p => p._id === pid)?.name?.toUpperCase()).filter(Boolean)
                         
                         return (
-                          <React.Fragment key={match._id}>
-                          <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr key={match._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                             <td className="px-3 py-3 text-slate-300 w-8">{clampedActivePage * ITEMS_PER_PAGE + idx + 1}</td>
                             <td className="px-3 py-3 w-24 truncate">
                               <button
                                 type="button"
-                                onClick={() => setExpandedActiveMatchId((prev) => (prev === match._id ? null : match._id))}
-                                className="flex w-full items-center justify-between gap-2 text-left"
+                                onClick={() => handlePreviewClick(match._id)}
+                                className="text-slate-100 hover:text-emerald-300 hover:underline transition-colors cursor-pointer w-full text-left truncate"
                                 title={court?.name || 'Click to view'}
                               >
-                                <span className="truncate text-slate-100">{court?.name || 'N/A'}</span>
-                                <span className="text-slate-400 sm:hidden">{expandedActiveMatchId === match._id ? '▼' : '▶'}</span>
+                                {court?.name || 'N/A'}
                               </button>
                             </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-blue-300 overflow-hidden">
+                            <td className="px-3 py-3 text-blue-300 overflow-hidden">
                               {team1Players.length > 0 ? (
                                 <div className="flex items-center min-w-0 gap-1">
                                   {team1Players.map((name, playerIdx) => (
@@ -603,7 +599,7 @@ const WaitingRoomPage = () => {
                                 <span className="text-slate-500">N/A</span>
                               )}
                             </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-rose-300 overflow-hidden">
+                            <td className="px-3 py-3 text-rose-300 overflow-hidden">
                               {team2Players.length > 0 ? (
                                 <div className="flex items-center min-w-0 gap-1">
                                   {team2Players.map((name, playerIdx) => (
@@ -617,29 +613,8 @@ const WaitingRoomPage = () => {
                                 <span className="text-slate-500">N/A</span>
                               )}
                             </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-slate-300 w-18 whitespace-nowrap">{team1Players.length}v{team2Players.length}</td>
+                            <td className="px-3 py-3 text-slate-300 w-18 whitespace-nowrap">{team1Players.length}v{team2Players.length}</td>
                           </tr>
-                          {expandedActiveMatchId === match._id && (
-                            <tr className="bg-slate-800/30 sm:hidden">
-                              <td colSpan={2} className="px-3 py-3">
-                                <div className="space-y-2 text-xs">
-                                  <div className="flex justify-between border-b border-white/10 pb-2">
-                                    <span className="text-slate-400">Team 1:</span>
-                                    <span className="text-blue-300">{team1Players.join(' / ') || 'N/A'}</span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-white/10 pb-2">
-                                    <span className="text-slate-400">Team 2:</span>
-                                    <span className="text-rose-300">{team2Players.join(' / ') || 'N/A'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Type:</span>
-                                    <span className="text-white">{team1Players.length}v{team2Players.length}</span>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          </React.Fragment>
                         )
                       })}
                     </tbody>
@@ -700,7 +675,7 @@ const WaitingRoomPage = () => {
           {/* Queued Matches Table */}
           <div className="flex flex-col flex-1 min-h-0 min-w-0">
             <div className="flex justify-between items-center mb-3 min-w-0">
-              <h3 className="text-lg font-semibold text-white truncate">Queue ({queuedMatches.length})</h3>
+              <h3 className="text-lg font-semibold text-white truncate">Queue / Waiting ({queuedMatches.length})</h3>
               {queuedMatches.length > ITEMS_PER_PAGE && (
                 <div className="text-xs text-slate-400">
                   Page {clampedQueuePage + 1} of {totalQueuePages}
@@ -722,9 +697,9 @@ const WaitingRoomPage = () => {
                       <tr className="border-b border-white/10">
                         <th className="text-left px-3 py-3 font-semibold text-slate-300 w-8">#</th>
                         <th className="text-left px-3 py-3 font-semibold text-slate-300 w-24 truncate">Court</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300">Team 1</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300">Team 2</th>
-                        <th className="hidden sm:table-cell text-left px-3 py-3 font-semibold text-slate-300 w-18 whitespace-nowrap">Type</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300">Team 1</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300">Team 2</th>
+                        <th className="text-left px-3 py-3 font-semibold text-slate-300 w-18 whitespace-nowrap">Type</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -736,20 +711,10 @@ const WaitingRoomPage = () => {
                         const team2Players = playerIds.slice(midpoint).map(pid => players.find(p => p._id === pid)?.name?.toUpperCase()).filter(Boolean)
                         
                         return (
-                          <React.Fragment key={match._id}>
-                          <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr key={match._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                             <td className="px-3 py-3 text-slate-300 w-8">{clampedQueuePage * ITEMS_PER_PAGE + idx + 1}</td>
-                            <td className="px-3 py-3 text-slate-100 w-24 truncate">
-                              <button
-                                type="button"
-                                onClick={() => setExpandedQueueMatchId((prev) => (prev === match._id ? null : match._id))}
-                                className="flex w-full items-center justify-between gap-2 text-left"
-                              >
-                                <span className="truncate">{court?.name || 'N/A'}</span>
-                                <span className="text-slate-400 sm:hidden">{expandedQueueMatchId === match._id ? '▼' : '▶'}</span>
-                              </button>
-                            </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-blue-300 overflow-hidden">
+                            <td className="px-3 py-3 text-slate-100 w-24 truncate">{court?.name || 'N/A'}</td>
+                            <td className="px-3 py-3 text-blue-300 overflow-hidden">
                               {team1Players.length > 0 ? (
                                 <div className="flex items-center min-w-0 gap-1">
                                   {team1Players.map((name, playerIdx) => (
@@ -763,7 +728,7 @@ const WaitingRoomPage = () => {
                                 <span className="text-slate-500">N/A</span>
                               )}
                             </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-rose-300 overflow-hidden">
+                            <td className="px-3 py-3 text-rose-300 overflow-hidden">
                               {team2Players.length > 0 ? (
                                 <div className="flex items-center min-w-0 gap-1">
                                   {team2Players.map((name, playerIdx) => (
@@ -777,29 +742,8 @@ const WaitingRoomPage = () => {
                                 <span className="text-slate-500">N/A</span>
                               )}
                             </td>
-                            <td className="hidden sm:table-cell px-3 py-3 text-slate-300 w-18 whitespace-nowrap">{team1Players.length}v{team2Players.length}</td>
+                            <td className="px-3 py-3 text-slate-300 w-18 whitespace-nowrap">{team1Players.length}v{team2Players.length}</td>
                           </tr>
-                          {expandedQueueMatchId === match._id && (
-                            <tr className="bg-slate-800/30 sm:hidden">
-                              <td colSpan={2} className="px-3 py-3">
-                                <div className="space-y-2 text-xs">
-                                  <div className="flex justify-between border-b border-white/10 pb-2">
-                                    <span className="text-slate-400">Team 1:</span>
-                                    <span className="text-blue-300">{team1Players.join(' / ') || 'N/A'}</span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-white/10 pb-2">
-                                    <span className="text-slate-400">Team 2:</span>
-                                    <span className="text-rose-300">{team2Players.join(' / ') || 'N/A'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Type:</span>
-                                    <span className="text-white">{team1Players.length}v{team2Players.length}</span>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          </React.Fragment>
                         )
                       })}
                     </tbody>
