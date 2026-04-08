@@ -434,8 +434,6 @@ const PlayersPage = ({ onPlayersUpdated, ongoingMatches = {}, matchQueue = {} })
 
     return () => {
       channel.unbind(PUSHER_EVENTS.PLAYER, handlePlayerEvent)
-      pusher.unsubscribe(PUSHER_CHANNEL)
-      pusher.disconnect()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

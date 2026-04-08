@@ -139,11 +139,10 @@ const SessionForm = ({
     const pusher = createPusherClient()
     if (!pusher) return undefined
     const channel = pusher.subscribe(PUSHER_CHANNEL)
-    channel.bind(PUSHER_EVENTS.PLAYER, () => { refetchPlayers() })
+    const handlePlayer = () => { refetchPlayers() }
+    channel.bind(PUSHER_EVENTS.PLAYER, handlePlayer)
     return () => {
-      channel.unbind_all()
-      pusher.unsubscribe(PUSHER_CHANNEL)
-      pusher.disconnect()
+      channel.unbind(PUSHER_EVENTS.PLAYER, handlePlayer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

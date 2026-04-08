@@ -294,11 +294,10 @@ const EditMatchForm = ({
     const pusher = createPusherClient()
     if (!pusher) return undefined
     const channel = pusher.subscribe(PUSHER_CHANNEL)
-    channel.bind(PUSHER_EVENTS.GAME, () => { refetchGames() })
+    const handleGame = () => { refetchGames() }
+    channel.bind(PUSHER_EVENTS.GAME, handleGame)
     return () => {
-      channel.unbind_all()
-      pusher.unsubscribe(PUSHER_CHANNEL)
-      pusher.disconnect()
+      channel.unbind(PUSHER_EVENTS.GAME, handleGame)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

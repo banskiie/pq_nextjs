@@ -88,12 +88,13 @@ const RecordsPage = () => {
     const pusher = createPusherClient()
     if (!pusher) return undefined
     const channel = pusher.subscribe(PUSHER_CHANNEL)
-    channel.bind(PUSHER_EVENTS.GAME, () => { refetchSessions(); refetchGames() })
-    channel.bind(PUSHER_EVENTS.SESSION, () => { refetchSessions(); refetchGames() })
+    const handleGame = () => { refetchSessions(); refetchGames() }
+    const handleSession = () => { refetchSessions(); refetchGames() }
+    channel.bind(PUSHER_EVENTS.GAME, handleGame)
+    channel.bind(PUSHER_EVENTS.SESSION, handleSession)
     return () => {
-      channel.unbind_all()
-      pusher.unsubscribe(PUSHER_CHANNEL)
-      pusher.disconnect()
+      channel.unbind(PUSHER_EVENTS.GAME, handleGame)
+      channel.unbind(PUSHER_EVENTS.SESSION, handleSession)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

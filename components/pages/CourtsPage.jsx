@@ -320,11 +320,10 @@ const CourtsPage = () => {
     const pusher = createPusherClient()
     if (!pusher) return undefined
     const channel = pusher.subscribe(PUSHER_CHANNEL)
-    channel.bind(PUSHER_EVENTS.COURT, () => { refetchCourts() })
+    const handleCourt = () => { refetchCourts() }
+    channel.bind(PUSHER_EVENTS.COURT, handleCourt)
     return () => {
-      channel.unbind_all()
-      pusher.unsubscribe(PUSHER_CHANNEL)
-      pusher.disconnect()
+      channel.unbind(PUSHER_EVENTS.COURT, handleCourt)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

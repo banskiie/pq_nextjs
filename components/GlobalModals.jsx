@@ -236,13 +236,20 @@ export default function GlobalModals() {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleConfirmEndMatch}
-                  disabled={recordGameLoading || isEndingMatch}
-                  className="flex-1 rounded-lg bg-emerald-500/20 px-4 py-2 font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                >
-                  {(recordGameLoading || isEndingMatch) ? 'Recording...' : 'End Match'}
-                </button>
+                {(recordGameLoading || isEndingMatch) ? (
+                  <div className="flex-1 rounded-lg overflow-hidden">
+                    <div className="relative h-10 w-full animate-pulse rounded-lg bg-emerald-500/20">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-linear-to-r from-transparent via-emerald-400/20 to-transparent" />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConfirmEndMatch}
+                    className="flex-1 rounded-lg bg-emerald-500/20 px-4 py-2 font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                  >
+                    End Match
+                  </button>
+                )}
               </div>
             </div>
           </div>

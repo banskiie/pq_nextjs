@@ -373,18 +373,23 @@ export function AppDataProvider({ children }) {
     if (!pusher) return undefined;
     const channel = pusher.subscribe(PUSHER_CHANNEL);
 
-    channel.bind(PUSHER_EVENTS.SESSION, () => { refetch(); });
-    channel.bind(PUSHER_EVENTS.COURT, () => { refetchCourts(); });
-    channel.bind(PUSHER_EVENTS.PAYMENT, () => { refetchPaymentsHistory(); });
-    channel.bind(PUSHER_EVENTS.MATCH, (payload) => {
+    const handleSession = () => { refetch(); };
+    const handleCourt = () => { refetchCourts(); };
+    const handlePayment = () => { refetchPaymentsHistory(); };
+    const handleMatch = (payload) => {
       if (payload) setOngoingMatchSubData(payload);
       refetchOngoingMatches();
-    });
+    };
+    channel.bind(PUSHER_EVENTS.SESSION, handleSession);
+    channel.bind(PUSHER_EVENTS.COURT, handleCourt);
+    channel.bind(PUSHER_EVENTS.PAYMENT, handlePayment);
+    channel.bind(PUSHER_EVENTS.MATCH, handleMatch);
 
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(PUSHER_CHANNEL);
-      pusher.disconnect();
+      channel.unbind(PUSHER_EVENTS.SESSION, handleSession);
+      channel.unbind(PUSHER_EVENTS.COURT, handleCourt);
+      channel.unbind(PUSHER_EVENTS.PAYMENT, handlePayment);
+      channel.unbind(PUSHER_EVENTS.MATCH, handleMatch);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
