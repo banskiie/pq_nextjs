@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppData } from '@/lib/AppDataContext';
-import OngoingMatchesPage from '@/page-components/OngoingMatchesPage';
+import OngoingMatchesPage from '@/components/pages/OngoingMatchesPage';
 
 export default function OngoingRoute() {
   const {

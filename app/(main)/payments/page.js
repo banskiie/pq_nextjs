@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppData } from '@/lib/AppDataContext';
-import PaymentsPage from '@/page-components/PaymentsPage';
+import PaymentsPage from '@/components/pages/PaymentsPage';
 
 export default function PaymentsRoute() {
   const {

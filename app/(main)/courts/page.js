@@ -1,6 +1,6 @@
 'use client';
 
-import CourtsPage from '@/page-components/CourtsPage';
+import CourtsPage from '@/components/pages/CourtsPage';
 
 export default function CourtsRoute() {
   return (

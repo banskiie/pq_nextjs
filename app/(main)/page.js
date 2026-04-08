@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAppData } from '@/lib/AppDataContext';
-import DashboardPage from '@/page-components/DashboardPage';
+import DashboardPage from '@/components/pages/DashboardPage';
 
 export default function HomePage() {
   const router = useRouter();

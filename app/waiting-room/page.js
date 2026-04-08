@@ -1,6 +1,6 @@
 'use client';
 
-import WaitingRoomPage from '@/page-components/WaitingRoomPage';
+import WaitingRoomPage from '@/components/pages/WaitingRoomPage';
 
 export default function WaitingRoomRoute() {
   return <WaitingRoomPage />;

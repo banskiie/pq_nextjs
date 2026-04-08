@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppData } from '@/lib/AppDataContext';
-import RecordsPage from '@/page-components/RecordsPage';
+import RecordsPage from '@/components/pages/RecordsPage';
 
 export default function RecordsRoute() {
   const { handleViewSession } = useAppData();

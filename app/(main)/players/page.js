@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppData } from '@/lib/AppDataContext';
-import PlayersPage from '@/page-components/PlayersPage';
+import PlayersPage from '@/components/pages/PlayersPage';
 
 export default function PlayersRoute() {
   const { players, refetchPlayers, ongoingMatches, matchQueue } = useAppData();
