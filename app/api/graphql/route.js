@@ -3,6 +3,9 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import typeDefs from '@/lib/graphql/typeDefs';
 import resolvers from '@/lib/graphql/resolvers';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const schema = makeExecutableSchema({ typeDefs, resolvers });
 const server = new ApolloServer({ schema });
 const startPromise = server.start();
