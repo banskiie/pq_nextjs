@@ -3,7 +3,7 @@ dist/
 .next/
 .env
 .env.*
-.env.*.local
+.env.*.production
 .env*
 certs/
 .next/

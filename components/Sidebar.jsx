@@ -83,7 +83,7 @@ const Navbar = () => {
                 alt="Sport Center Logo"
                 width={112}
                 height={112}
-                style={{ width: '112px', height: 'auto' }}
+                  className="h-auto w-28"
                 priority
               />
             </div>
