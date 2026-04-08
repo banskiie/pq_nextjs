@@ -1,8 +1,10 @@
 ﻿'use client';
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
+import { useMutation, useQuery } from '@apollo/client/react'
 import { gql } from '@apollo/client'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 import MassAddPlayersModal from './MassAddPlayersModal'
 import useDebouncedValue from '@/hooks/useDebouncedValue'
 import { getBackendApiUrl } from '@/lib/backendEndpoints'
@@ -52,20 +54,6 @@ const PLAYERS_QUERY = gql`
       name
       gender
       playerLevel
-    }
-  }
-`
-
-const PLAYER_UPDATES_SUBSCRIPTION = gql`
-  subscription PlayerUpdates {
-    playerUpdates {
-      type
-      player {
-        _id
-        name
-        gender
-        playerLevel
-      }
     }
   }
 `
@@ -145,7 +133,21 @@ const SessionForm = ({
     data: deletedPlayersData,
     refetch: refetchDeletedPlayers,
   } = useQuery(DELETED_PLAYERS_QUERY)
-  const { data: playerUpdateData } = useSubscription(PLAYER_UPDATES_SUBSCRIPTION)
+  const { data: playerUpdateData } = { data: null } // replaced by Pusher below
+
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.PLAYER, () => { refetchPlayers() })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Debug: Log if there's an error fetching players
   useEffect(() => {
@@ -200,34 +202,6 @@ const SessionForm = ({
   }, [playersData?.players])
 
   const [restorePlayer] = useMutation(RESTORE_PLAYER_MUTATION)
-
-  useEffect(() => {
-    if (!playerUpdateData?.playerUpdates) return
-
-    const { type, player } = playerUpdateData.playerUpdates
-    if (!player?._id) return
-
-    if (type === 'CREATED') {
-      setPlayersState((prev) => {
-        const exists = prev.some((p) => p._id === player._id)
-        return exists ? prev : [...prev, player]
-      })
-      return
-    }
-
-    if (type === 'UPDATED') {
-      setPlayersState((prev) => {
-        const exists = prev.some((p) => p._id === player._id)
-        if (!exists) return [...prev, player]
-        return prev.map((p) => (p._id === player._id ? player : p))
-      })
-      return
-    }
-
-    if (type === 'DELETED') {
-      setPlayersState((prev) => prev.filter((p) => p._id !== player._id))
-    }
-  }, [playerUpdateData])
 
   // Reset to page 1 when search or filter changes
   useEffect(() => {

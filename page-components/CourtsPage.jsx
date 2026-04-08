@@ -2,7 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { gql } from '@apollo/client'
-import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
+import { useMutation, useQuery } from '@apollo/client/react'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 
 const COURTS_QUERY = gql`
   query CourtsPage {
@@ -69,23 +71,6 @@ const DELETE_COURT_MUTATION = gql`
   }
 `
 
-const COURT_SUBSCRIPTION = gql`
-  subscription CourtsPageSub {
-    courtSub {
-      type
-      court {
-        _id
-        name
-        surfaceType
-        indoor
-        description
-        status
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`
 
 const SURFACE_OPTIONS = ['WOODEN', 'RUBBER']
 const STATUS_OPTIONS = ['ACTIVE', 'OCCUPIED', 'MAINTENANCE']
@@ -329,10 +314,19 @@ const CourtsPage = () => {
 
   const { data: courtsData, refetch: refetchCourts } = useQuery(COURTS_QUERY)
 
-  useSubscription(COURT_SUBSCRIPTION, {
-    onData: () => { refetchCourts() },
-    onError: () => { refetchCourts() },
-  })
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.COURT, () => { refetchCourts() })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (courtsData?.courts) {

@@ -2,7 +2,9 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { gql } from '@apollo/client'
-import { useMutation, useSubscription, useQuery } from '@apollo/client/react'
+import { useMutation, useQuery } from '@apollo/client/react'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 import MassAddPlayersModal from '@/components/MassAddPlayersModal'
 
 const PLAYERS_QUERY = gql`
@@ -111,31 +113,22 @@ const RESTORE_PLAYER_MUTATION = gql`
   }
 `
 
-const PLAYER_UPDATES_SUBSCRIPTION = gql`
-  subscription PlayerUpdates {
-    playerUpdates {
-      type
-      player {
-        _id
-        name
-        gender
-        playerLevel
-        playCount
-        winCount
-        lossCount
-        winRate
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`
-
 const PLAYER_LEVELS = {
   BEGINNER: 'Beginner',
   INTERMEDIATE: 'Intermediate',
   UPPERINTERMEDIATE: 'Upper Intermediate',
   ADVANCED: 'Advanced',
+}
+
+const formatGender = (gender) => {
+  if (gender === 'MALE') return '♂ Male'
+  if (gender === 'FEMALE') return '♀ Female'
+  if (gender === 'OTHER') return 'Other'
+  return 'Not set'
+}
+
+const formatPlayerLevel = (playerLevel) => {
+  return PLAYER_LEVELS[playerLevel] || playerLevel || 'Not set'
 }
 
 const getPlayerErrorMessage = (error) => {
@@ -217,12 +210,12 @@ const PlayerRow = React.memo(({
         </td>
         <td className="px-2 sm:px-3.5 py-2 hidden sm:table-cell">
           <span className="inline-flex items-center rounded-full bg-slate-800/50 px-2 py-0.5 text-xs text-slate-200">
-            {player.gender === 'MALE' ? '♂ Male' : player.gender === 'FEMALE' ? '♀ Female' : '—'}
+            {formatGender(player.gender)}
           </span>
         </td>
         <td className="px-2 sm:px-3.5 py-2 hidden sm:table-cell">
           <span className="inline-flex items-center rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-200">
-            {PLAYER_LEVELS[player.playerLevel] || player.playerLevel || '—'}
+            {formatPlayerLevel(player.playerLevel)}
           </span>
         </td>
         <td className="px-2 sm:px-3.5 py-2 text-center text-xs sm:text-sm text-white hidden md:table-cell">
@@ -271,13 +264,13 @@ const PlayerRow = React.memo(({
               <div className="flex justify-between items-center border-b border-white/10 pb-2">
                 <span className="text-slate-400">Gender:</span>
                 <span className="text-white">
-                  {player.gender === 'MALE' ? '♂ Male' : player.gender === 'FEMALE' ? '♀ Female' : '—'}
+                  {formatGender(player.gender)}
                 </span>
               </div>
               <div className="flex justify-between items-center border-b border-white/10 pb-2">
                 <span className="text-slate-400">Skill Level:</span>
                 <span className="text-blue-200">
-                  {PLAYER_LEVELS[player.playerLevel] || player.playerLevel || '—'}
+                  {formatPlayerLevel(player.playerLevel)}
                 </span>
               </div>
               <div className="flex justify-between items-center border-b border-white/10 pb-2">
@@ -426,7 +419,25 @@ const PlayersPage = ({ onPlayersUpdated, ongoingMatches = {}, matchQueue = {} })
 
   const { data: deletedPlayersData, loading: deletedPlayersLoading, refetch: refetchDeletedPlayers } = useQuery(DELETED_PLAYERS_QUERY)
 
-  const { data: playerUpdateData } = useSubscription(PLAYER_UPDATES_SUBSCRIPTION)
+  const { data: playerUpdateData } = { data: null } // replaced by Pusher below
+
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.PLAYER, () => {
+      refetchPlayers()
+      refetchCount()
+      refetchDeletedPlayers()
+    })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (countData?.playersCount) {
@@ -445,44 +456,6 @@ const PlayersPage = ({ onPlayersUpdated, ongoingMatches = {}, matchQueue = {} })
       setPlayersState(playersData.playersPaginated.players)
     }
   }, [playersData])
-
-  useEffect(() => {
-    if (!playerUpdateData?.playerUpdates) return
-
-    const { type, player } = playerUpdateData.playerUpdates
-    if (!player?._id) return
-
-    if (type === 'CREATED') {
-      setPlayersState((prev) => {
-        const exists = prev.some((p) => p._id === player._id)
-        return exists ? prev : [...prev, player]
-      })
-      setDeletedPlayersState((prev) => prev.filter((p) => p._id !== player._id))
-      return
-    }
-
-    if (type === 'UPDATED') {
-      setPlayersState((prev) => {
-        const exists = prev.some((p) => p._id === player._id)
-        if (!exists) return [...prev, player]
-        return prev.map((p) => (p._id === player._id ? player : p))
-      })
-      setDeletedPlayersState((prev) => prev.map((p) => (p._id === player._id ? { ...p, ...player } : p)))
-      return
-    }
-
-    if (type === 'DELETED') {
-      setPlayersState((prev) => prev.filter((p) => p._id !== player._id))
-      setDeletedPlayersState((prev) => {
-        const exists = prev.some((p) => p._id === player._id)
-        if (exists) {
-          return prev.map((p) => (p._id === player._id ? { ...p, ...player } : p))
-        }
-
-        return [player, ...prev]
-      })
-    }
-  }, [playerUpdateData])
 
   const displayedPlayers = useMemo(() => {
     const sorted = [...playersState]

@@ -1,8 +1,10 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useQuery, useSubscription, useMutation } from "@apollo/client/react";
+import { useQuery, useMutation } from "@apollo/client/react";
 import { gql } from "@apollo/client";
+import Pusher from 'pusher-js';
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents';
 import { DndContext, DragOverlay, useSensor, useSensors, MouseSensor, TouchSensor } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
@@ -39,20 +41,6 @@ const GAMES_BY_SESSION_QUERY = gql`
       _id
       players
       winnerPlayerIds
-    }
-  }
-`;
-
-const GAMES_SUBSCRIPTION = gql`
-  subscription GameSub {
-    gameSub {
-      type
-      game {
-        _id
-        sessionId
-        players
-        winnerPlayerIds
-      }
     }
   }
 `;
@@ -352,14 +340,25 @@ const CreateMatchForm = ({
   );
 
   const { data: courtsData } = useQuery(COURTS_QUERY);
-  const { data: sessionGamesData } = useQuery(GAMES_BY_SESSION_QUERY, {
+  const { data: sessionGamesData, refetch: refetchGames } = useQuery(GAMES_BY_SESSION_QUERY, {
     variables: { sessionId: selectedSessionId },
     skip: !selectedSessionId,
     fetchPolicy: "cache-and-network",
   });
-  const { data: gameSubData } = useSubscription(GAMES_SUBSCRIPTION, {
-    skip: !isOpen,
-  });
+
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.GAME, () => { refetchGames() })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [addPlayersToSession] = useMutation(ADD_PLAYERS_TO_SESSION_MUTATION, {
     refetchQueries: ["Sessions"],
@@ -573,16 +572,8 @@ const CreateMatchForm = ({
   const sessionQueuedMatches = matchQueue?.[selectedSessionId] || [];
   const sessionAllMatches = [...sessionOngoingMatches, ...sessionQueuedMatches];
   const sessionGames = useMemo(() => {
-    const baseGames = sessionGamesData?.gamesBySession || [];
-    const subGame = gameSubData?.gameSub?.game;
-
-    if (!subGame || String(subGame.sessionId) !== String(selectedSessionId)) {
-      return baseGames;
-    }
-
-    const exists = baseGames.some((game) => String(game._id) === String(subGame._id));
-    return exists ? baseGames : [subGame, ...baseGames];
-  }, [sessionGamesData?.gamesBySession, gameSubData?.gameSub?.game, selectedSessionId]);
+    return sessionGamesData?.gamesBySession || [];
+  }, [sessionGamesData?.gamesBySession]);
   const playersInUseSet = new Set(
     sessionAllMatches.flatMap((match) => match.playerIds || [])
   );

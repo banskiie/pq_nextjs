@@ -1,8 +1,10 @@
 ﻿'use client';
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { gql } from '@apollo/client'
-import { useQuery, useSubscription } from '@apollo/client/react'
+import { useQuery } from '@apollo/client/react'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 import useDebouncedValue from '@/hooks/useDebouncedValue'
 
 const GAMES_BY_SESSION_QUERY = gql`
@@ -31,24 +33,6 @@ const GAMES_BY_SESSION_IDS_QUERY = gql`
       finishedAt
       createdAt
       updatedAt
-    }
-  }
-`
-
-const GAMES_SUBSCRIPTION = gql`
-  subscription GameSub {
-    gameSub {
-      type
-      game {
-        _id
-        sessionId
-        courtId
-        players
-        winnerPlayerIds
-        finishedAt
-        createdAt
-        updatedAt
-      }
     }
   }
 `
@@ -88,21 +72,34 @@ const SessionMatchRecordModal = ({ sessionId, sessionIds = [], sessions = [], se
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 200)
   const [playCountFilter, setPlayCountFilter] = useState('')
 
-  const { data: singleData, loading: singleLoading, error: singleError } = useQuery(GAMES_BY_SESSION_QUERY, {
+  const { data: subData, loading: singleLoading, error: singleError, refetch: refetchSingle } = useQuery(GAMES_BY_SESSION_QUERY, {
     variables: { sessionId },
-    skip: !sessionId,
+    skip: isAllSessionsMode || !sessionId,
     fetchPolicy: 'cache-and-network',
   })
 
-  const { data: allData, loading: allLoading, error: allError } = useQuery(GAMES_BY_SESSION_IDS_QUERY, {
+  const { data: allData, loading: allLoading, error: allError, refetch: refetchAll } = useQuery(GAMES_BY_SESSION_IDS_QUERY, {
     variables: { sessionIds },
     skip: !isAllSessionsMode || sessionIds.length === 0,
     fetchPolicy: 'cache-and-network',
   })
 
-  const { data: subData } = useSubscription(GAMES_SUBSCRIPTION, {
-    skip: !sessionId && sessionIds.length === 0,
-  })
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.GAME, () => {
+      if (isAllSessionsMode) refetchAll()
+      else refetchSingle()
+    })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAllSessionsMode])
 
   const loading = isAllSessionsMode ? allLoading : singleLoading
   const error = isAllSessionsMode ? allError : singleError
@@ -110,28 +107,9 @@ const SessionMatchRecordModal = ({ sessionId, sessionIds = [], sessions = [], se
   const sessionGames = useMemo(() => {
     const baseGames = isAllSessionsMode
       ? (allData?.gamesBySessionIds || [])
-      : (singleData?.gamesBySession || [])
-    const subGame = subData?.gameSub?.game
-
-    const sessionIdSet = new Set((sessionIds || []).map(String))
-
-    if (!subGame) {
-      return [...baseGames].sort((left, right) => getMatchTimestamp(right) - getMatchTimestamp(left))
-    }
-
-    const shouldIncludeSubGame = isAllSessionsMode
-      ? sessionIdSet.has(String(subGame.sessionId))
-      : String(subGame.sessionId) === String(sessionId)
-
-    if (!shouldIncludeSubGame) {
-      return [...baseGames].sort((left, right) => getMatchTimestamp(right) - getMatchTimestamp(left))
-    }
-
-    const exists = baseGames.some((game) => String(game._id) === String(subGame._id))
-    const mergedGames = exists ? baseGames : [subGame, ...baseGames]
-
-    return [...mergedGames].sort((left, right) => getMatchTimestamp(right) - getMatchTimestamp(left))
-  }, [allData?.gamesBySessionIds, isAllSessionsMode, sessionId, sessionIds, singleData?.gamesBySession, subData?.gameSub?.game])
+      : (subData?.gamesBySession || [])
+    return [...baseGames].sort((left, right) => getMatchTimestamp(right) - getMatchTimestamp(left))
+  }, [allData?.gamesBySessionIds, isAllSessionsMode, subData?.gamesBySession])
 
   const playerNameById = useMemo(
     () => new Map((players || []).map((player) => [String(player._id), (player.name || 'Unknown').toUpperCase()])),

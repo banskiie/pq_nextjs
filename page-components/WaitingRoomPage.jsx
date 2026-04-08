@@ -2,7 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { gql } from '@apollo/client'
-import { useQuery, useSubscription } from '@apollo/client/react'
+import { useQuery } from '@apollo/client/react'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 import BadmintonCourt from '@/components/BadmintonCourt'
 import CourtPreview from '@/components/CourtPreview'
 
@@ -34,24 +36,6 @@ const ONGOING_MATCHES_QUERY = gql`
       startedAt
       createdAt
       updatedAt
-    }
-  }
-`
-
-const ONGOING_MATCH_UPDATES_SUBSCRIPTION = gql`
-  subscription OngoingMatchUpdates {
-    ongoingMatchUpdates {
-      type
-      match {
-        _id
-        sessionId
-        courtId
-        playerIds
-        queued
-        startedAt
-        createdAt
-        updatedAt
-      }
     }
   }
 `
@@ -88,26 +72,6 @@ const PLAYERS_QUERY = gql`
   }
 `
 
-const PLAYER_UPDATES_SUBSCRIPTION = gql`
-  subscription PlayerUpdates {
-    playerUpdates {
-      type
-      player {
-        _id
-        name
-        gender
-        playerLevel
-        playCount
-        winCount
-        lossCount
-        winRate
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`
-
 const bucketMatchesBySession = (matches = []) => {
   const ongoingBySession = {}
   const queuedBySession = {}
@@ -139,104 +103,12 @@ const WaitingRoomPage = () => {
   const [rotationResetToken, setRotationResetToken] = useState(0)
   const [ongoingMatches, setOngoingMatches] = useState({})
   const [matchQueue, setMatchQueue] = useState({})
-  const [playersState, setPlayersState] = useState([])
   const [activePage, setActivePage] = useState(0)
   const [queuePage, setQueuePage] = useState(0)
   const hasMatchesRef = useRef(false)
   const ITEMS_PER_PAGE = 3
 
-  // Subscribe to real-time match updates (ongoing matches)
-  const { error: subError } = useSubscription(ONGOING_MATCH_UPDATES_SUBSCRIPTION, {
-    onData: ({ data }) => {
-      const payload = data?.data?.ongoingMatchUpdates
-      if (!payload) return
-
-      const { type, match } = payload
-      const matchWithId = { _id: match._id, ...match }
-
-      if (type === 'STARTED') {
-        if (match.queued) {
-          setMatchQueue((prev) => {
-            const current = prev[match.sessionId] || []
-            const exists = current.some((m) => m._id === match._id)
-            return {
-              ...prev,
-              [match.sessionId]: exists
-                ? current.map((m) => (m._id === match._id ? matchWithId : m))
-                : [...current, matchWithId],
-            }
-          })
-        } else {
-          setOngoingMatches((prev) => {
-            const current = prev[match.sessionId] || []
-            const exists = current.some((m) => m._id === match._id)
-            return {
-              ...prev,
-              [match.sessionId]: exists
-                ? current.map((m) => (m._id === match._id ? matchWithId : m))
-                : [...current, matchWithId],
-            }
-          })
-        }
-      } else if (type === 'UPDATED') {
-        if (match.queued) {
-          setMatchQueue((prev) => ({
-            ...prev,
-            [match.sessionId]: (prev[match.sessionId] || []).map((m) =>
-              m._id === match._id ? matchWithId : m
-            ),
-          }))
-        } else {
-          setMatchQueue((prev) => ({
-            ...prev,
-            [match.sessionId]: (prev[match.sessionId] || []).filter((m) => m._id !== match._id),
-          }))
-          setOngoingMatches((prev) => {
-            const sessionMatches = prev[match.sessionId] || []
-            const existingIndex = sessionMatches.findIndex((m) => m._id === match._id)
-            if (existingIndex >= 0) {
-              return {
-                ...prev,
-                [match.sessionId]: sessionMatches.map((m) => (m._id === match._id ? matchWithId : m)),
-              }
-            }
-            return {
-              ...prev,
-              [match.sessionId]: [...sessionMatches, matchWithId],
-            }
-          })
-        }
-      } else if (type === 'ENDED') {
-        setOngoingMatches((prev) => ({
-          ...prev,
-          [match.sessionId]: (prev[match.sessionId] || []).filter((m) => m._id !== match._id),
-        }))
-        setMatchQueue((prev) => ({
-          ...prev,
-          [match.sessionId]: (prev[match.sessionId] || []).filter((m) => m._id !== match._id),
-        }))
-      }
-    },
-  })
-
-  // Subscribe to real-time player updates
-  useSubscription(PLAYER_UPDATES_SUBSCRIPTION, {
-    onData: ({ data }) => {
-      const payload = data?.data?.playerUpdates
-      if (!payload) return
-
-      const { type, player } = payload
-      if (type === 'CREATED') {
-        setPlayersState((prev) => [...prev, player])
-      } else if (type === 'UPDATED') {
-        setPlayersState((prev) => prev.map((p) => (p._id === player._id ? player : p)))
-      } else if (type === 'DELETED') {
-        setPlayersState((prev) => prev.filter((p) => p._id !== player._id))
-      }
-    },
-  })
-
-  // Fetch initial data - subscriptions handle real-time updates
+  // Fetch initial data - poll interval handles eventual consistency
   const { data: ongoingQueryData, error: matchesError, refetch: refetchMatches } = useQuery(ONGOING_MATCHES_QUERY, {
     pollInterval: WAITING_ROOM_POLL_INTERVAL_MS,
     onCompleted: (queryData) => {
@@ -245,7 +117,13 @@ const WaitingRoomPage = () => {
       setMatchQueue(queuedBySession)
     },
   })
-  
+  const { data: courtsData } = useQuery(COURTS_QUERY, {
+    pollInterval: WAITING_ROOM_POLL_INTERVAL_MS,
+  })
+  const { data: playersData, refetch: refetchPlayers } = useQuery(PLAYERS_QUERY, {
+    pollInterval: WAITING_ROOM_POLL_INTERVAL_MS,
+  })
+
   // Sync query data to state (fallback if onCompleted doesn't fire)
   useEffect(() => {
     if (ongoingQueryData?.ongoingMatches) {
@@ -254,32 +132,33 @@ const WaitingRoomPage = () => {
       setMatchQueue(queuedBySession)
     }
   }, [ongoingQueryData?.ongoingMatches])
-  const { data: courtsData } = useQuery(COURTS_QUERY, {
-    pollInterval: WAITING_ROOM_POLL_INTERVAL_MS,
-  })
-  const { data: playersData } = useQuery(PLAYERS_QUERY, {
-    pollInterval: WAITING_ROOM_POLL_INTERVAL_MS,
-  })
+
+  // Pusher real-time updates
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.MATCH, () => { refetchMatches() })
+    channel.bind(PUSHER_EVENTS.PLAYER, () => { refetchPlayers() })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const courts = courtsData?.courts || []
-  const players = useMemo(() => {
-    const merged = new Map((playersData?.players || []).map((player) => [player._id, player]))
-    playersState.forEach((player) => {
-      merged.set(player._id, player)
-    })
-    return Array.from(merged.values())
-  }, [playersData?.players, playersState])
+  const players = useMemo(() => playersData?.players || [], [playersData?.players])
 
-  // Fallback: refetch if subscription isn't working or query failed
+  // Fallback: refetch if query failed
   useEffect(() => {
-    if (subError) {
-      console.error('Subscription error:', subError)
-    }
     if (matchesError) {
       console.error('Query error:', matchesError)
       refetchMatches()
     }
-  }, [subError, matchesError, refetchMatches])
+  }, [matchesError, refetchMatches])
 
   // Flatten all ongoing matches from all sessions
   // Note: ongoingMatches already contains only non-queued matches from bucketing

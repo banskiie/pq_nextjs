@@ -2,7 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { gql } from '@apollo/client';
-import { useSubscription, useQuery, useMutation } from '@apollo/client/react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import Pusher from 'pusher-js';
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents';
 
 const SESSIONS_QUERY = gql`
   query Sessions {
@@ -21,30 +23,6 @@ const SESSIONS_QUERY = gql`
       endedAt
       createdAt
       updatedAt
-    }
-  }
-`;
-
-const SESSION_SUBSCRIPTION = gql`
-  subscription SessionSub {
-    sessionSub {
-      type
-      session {
-        _id
-        name
-        status
-        isArchived
-        courts
-        players {
-          playerId
-          gamesPlayed
-        }
-        price
-        startedAt
-        endedAt
-        createdAt
-        updatedAt
-      }
     }
   }
 `;
@@ -285,40 +263,6 @@ const COURTS_QUERY = gql`
   }
 `;
 
-const COURT_SUBSCRIPTION = gql`
-  subscription CourtSub {
-    courtSub {
-      type
-      court {
-        _id
-        name
-        surfaceType
-        indoor
-        description
-        status
-      }
-    }
-  }
-`;
-
-const ONGOING_MATCHES_SUBSCRIPTION = gql`
-  subscription OngoingMatchUpdates {
-    ongoingMatchUpdates {
-      type
-      match {
-        _id
-        sessionId
-        courtId
-        playerIds
-        queued
-        startedAt
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`;
-
 const PLAYERS_QUERY = gql`
   query Players {
     players {
@@ -372,17 +316,6 @@ const PAYMENTS_HISTORY_QUERY = gql`
   }
 `;
 
-const PAYMENT_SUBSCRIPTION = gql`
-  subscription PaymentSub {
-    paymentSub {
-      type
-      payment {
-        _id
-      }
-    }
-  }
-`;
-
 const AppDataContext = createContext(null);
 
 export function useAppData() {
@@ -419,19 +352,8 @@ export function AppDataProvider({ children }) {
   };
 
   const { data, loading, error, refetch } = useQuery(SESSIONS_QUERY);
-  useSubscription(SESSION_SUBSCRIPTION, {
-    onData: () => { refetch(); },
-    onError: () => { refetch(); },
-  });
   const { data: ongoingMatchesData, refetch: refetchOngoingMatches } = useQuery(ONGOING_MATCHES_QUERY);
   const { data: courtsData, refetch: refetchCourts } = useQuery(COURTS_QUERY);
-  useSubscription(COURT_SUBSCRIPTION, {
-    onData: () => { refetchCourts(); },
-    onError: () => { refetchCourts(); },
-  });
-  const { data: ongoingMatchSubData } = useSubscription(ONGOING_MATCHES_SUBSCRIPTION, {
-    onError: () => { refetchOngoingMatches(); },
-  });
   const { data: playersData, refetch: refetchPlayers } = useQuery(PLAYERS_QUERY);
   const sessionIdsForGames = useMemo(
     () => (data?.sessions || []).map((session) => session._id),
@@ -442,10 +364,31 @@ export function AppDataProvider({ children }) {
     skip: sessionIdsForGames.length === 0,
   });
   const { data: paymentsHistoryData, refetch: refetchPaymentsHistory } = useQuery(PAYMENTS_HISTORY_QUERY);
-  useSubscription(PAYMENT_SUBSCRIPTION, {
-    onData: () => { refetchPaymentsHistory(); },
-    onError: () => { refetchPaymentsHistory(); },
-  });
+
+  // ─── Pusher real-time subscriptions ────────────────────────────────────────
+  const [ongoingMatchSubData, setOngoingMatchSubData] = useState(null);
+
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    });
+    const channel = pusher.subscribe(PUSHER_CHANNEL);
+
+    channel.bind(PUSHER_EVENTS.SESSION, () => { refetch(); });
+    channel.bind(PUSHER_EVENTS.COURT, () => { refetchCourts(); });
+    channel.bind(PUSHER_EVENTS.PAYMENT, () => { refetchPaymentsHistory(); });
+    channel.bind(PUSHER_EVENTS.MATCH, (payload) => {
+      if (payload) setOngoingMatchSubData(payload);
+      refetchOngoingMatches();
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(PUSHER_CHANNEL);
+      pusher.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [createSession, { loading: createLoading }] = useMutation(CREATE_SESSION_MUTATION);
   const [updateSession, { loading: updateLoading }] = useMutation(UPDATE_SESSION_MUTATION);
@@ -518,8 +461,8 @@ export function AppDataProvider({ children }) {
   }, [ongoingMatchesData]);
 
   useEffect(() => {
-    if (!ongoingMatchSubData?.ongoingMatchUpdates) return;
-    const { type, match } = ongoingMatchSubData.ongoingMatchUpdates;
+    if (!ongoingMatchSubData?.match) return;
+    const { type, match } = ongoingMatchSubData;
     if (type === 'STARTED' || type === 'UPDATED' || type === 'CREATED') {
       setOngoingMatches((prev) => {
         const updated = { ...prev };

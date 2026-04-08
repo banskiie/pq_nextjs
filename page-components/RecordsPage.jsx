@@ -2,7 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { gql } from '@apollo/client'
-import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
+import { useMutation, useQuery } from '@apollo/client/react'
+import Pusher from 'pusher-js'
+import { PUSHER_CHANNEL, PUSHER_EVENTS } from '@/lib/pusherEvents'
 import SessionRecordDetail from '@/components/SessionRecordDetail'
 import useDebouncedValue from '@/hooks/useDebouncedValue'
 
@@ -37,47 +39,6 @@ const GAMES_BY_SESSION_IDS_QUERY = gql`
       finishedAt
       createdAt
       updatedAt
-    }
-  }
-`
-
-const GAMES_SUBSCRIPTION = gql`
-  subscription GameSub {
-    gameSub {
-      type
-      game {
-        _id
-        sessionId
-        courtId
-        players
-        winnerPlayerIds
-        finishedAt
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`
-
-const SESSION_SUBSCRIPTION = gql`
-  subscription SessionSub {
-    sessionSub {
-      type
-      session {
-        _id
-        name
-        status
-        isArchived
-        courts
-        players {
-          playerId
-          gamesPlayed
-        }
-        startedAt
-        endedAt
-        createdAt
-        updatedAt
-      }
     }
   }
 `
@@ -123,9 +84,22 @@ const RecordsPage = () => {
     skip: sessionIds.length === 0, // Skip query if no archived sessions
     fetchPolicy: 'network-only'
   })
-  const { data: subData } = useSubscription(GAMES_SUBSCRIPTION)
-  const { data: sessionSubData } = useSubscription(SESSION_SUBSCRIPTION)
-  const sessionSub = sessionSubData?.sessionSub
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    })
+    const channel = pusher.subscribe(PUSHER_CHANNEL)
+    channel.bind(PUSHER_EVENTS.GAME, () => { refetchSessions(); refetchGames() })
+    channel.bind(PUSHER_EVENTS.SESSION, () => { refetchSessions(); refetchGames() })
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(PUSHER_CHANNEL)
+      pusher.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const games = useMemo(() => data?.gamesBySessionIds || [], [data?.gamesBySessionIds])
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const [sortOrder, setSortOrder] = useState('desc')
@@ -141,39 +115,6 @@ const RecordsPage = () => {
   const [archiveSession, { loading: archiveLoading }] = useMutation(ARCHIVE_SESSION_MUTATION)
   
   const sessions = useMemo(() => sessionsData?.closedSessions || [], [sessionsData?.closedSessions])
-  
-  // Handle subscription updates - refetch when games are created or sessions change status
-  useEffect(() => {
-    // When a game is created, refetch to capture any newly-closed sessions and games
-    if (subData?.gameSub?.type === 'CREATED') {
-      refetchSessions()
-      refetchGames()
-    }
-  }, [subData?.gameSub?.type, refetchSessions, refetchGames])
-
-  // Handle session status changes
-  useEffect(() => {
-    if (!sessionSub) return
-    const { type } = sessionSub
-    // Refetch on any session change: CLOSED, UPDATED, ARCHIVED
-    if (type === 'CLOSED' || type === 'UPDATED' || type === 'ARCHIVED') {
-      refetchSessions()
-      refetchGames()
-    }
-  }, [sessionSub, refetchSessions, refetchGames])
-
-  const games = useMemo(() => {
-    const baseGames = data?.gamesBySessionIds || []
-    
-    // Merge subscription data
-    if (subData?.gameSub?.game) {
-      const newGame = subData.gameSub.game
-      const exists = baseGames.some(g => g._id === newGame._id)
-      return exists ? baseGames : [...baseGames, newGame]
-    }
-    
-    return baseGames
-  }, [data?.gamesBySessionIds, subData?.gameSub?.game])
 
   const getDateValue = (value) => {
     if (!value) return 0
