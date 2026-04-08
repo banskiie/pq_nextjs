@@ -91,6 +91,8 @@ const statusColors = {
   MAINTENANCE: 'bg-rose-500/20 text-rose-200',
 }
 
+const isCourtOccupied = (court) => court?.status === 'OCCUPIED'
+
 // ─── Add / Edit Modal ────────────────────────────────────────────────────────
 
 const CourtFormModal = ({ isOpen, onClose, court, onSubmit, isSubmitting, errorMessage }) => {
@@ -386,6 +388,7 @@ const CourtsPage = () => {
   }
 
   const openEdit = (court) => {
+    if (isCourtOccupied(court)) return
     setEditingCourt(court)
     setFormError('')
     setIsFormOpen(true)
@@ -555,6 +558,12 @@ const CourtsPage = () => {
             ) : (
               paginated.map((court) => (
                 <React.Fragment key={court._id}>
+                  {(() => {
+                    const occupied = isCourtOccupied(court)
+                    const editTitle = occupied ? 'Cannot edit court currently in use' : 'Edit court'
+                    const deleteTitle = occupied ? 'Cannot delete court currently in use' : 'Delete court'
+
+                    return (
                   <tr className="border-b border-white/10 transition hover:bg-white/5">
                     <td className="px-3.5 py-3 font-medium text-white">
                       <button
@@ -587,20 +596,34 @@ const CourtsPage = () => {
                         <button
                           type="button"
                           onClick={() => openEdit(court)}
-                          className="inline-flex items-center justify-center rounded bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-200 transition hover:bg-blue-500/30 whitespace-nowrap"
+                          disabled={occupied}
+                          title={editTitle}
+                          className={`inline-flex items-center justify-center rounded px-2.5 py-1 text-xs font-medium transition whitespace-nowrap ${
+                            occupied
+                              ? 'bg-slate-600/20 text-slate-400 cursor-not-allowed'
+                              : 'bg-blue-500/20 text-blue-200 hover:bg-blue-500/30'
+                          }`}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(court)}
-                          className="inline-flex items-center justify-center rounded bg-rose-500/20 px-2.5 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-500/30 whitespace-nowrap"
+                          disabled={occupied}
+                          title={deleteTitle}
+                          className={`inline-flex items-center justify-center rounded px-2.5 py-1 text-xs font-medium transition whitespace-nowrap ${
+                            occupied
+                              ? 'bg-slate-600/20 text-slate-400 cursor-not-allowed'
+                              : 'bg-rose-500/20 text-rose-200 hover:bg-rose-500/30'
+                          }`}
                         >
                           Delete
                         </button>
                       </div>
                     </td>
                   </tr>
+                    )
+                  })()}
                   {expandedCourtId === court._id && (
                     <tr className="bg-slate-800/30 sm:hidden">
                       <td colSpan={3} className="px-3.5 py-3">
