@@ -211,6 +211,19 @@ const DroppableTeam = ({ teamNumber, children }) => {
   );
 };
 
+const DroppableSelectionPool = ({ children }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: 'selected-pool' })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded border p-2 transition ${isOver ? 'border-sky-300/50 bg-sky-500/20' : 'border-sky-300/30 bg-sky-500/10'}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 const EditMatchForm = ({ 
   match,
   courts,
@@ -236,11 +249,13 @@ const EditMatchForm = ({
   const [showInUseOnly, setShowInUseOnly] = useState(false)
   const [showZeroPlayCountOnly, setShowZeroPlayCountOnly] = useState(false)
   const [currentPlayerPage, setCurrentPlayerPage] = useState(0)
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [addPlayerSearch, setAddPlayerSearch] = useState('')
   const [addPlayerStatus, setAddPlayerStatus] = useState(null)
   const [addPlayerError, setAddPlayerError] = useState('')
   const [popupMessage, setPopupMessage] = useState('')
   const [showPopup, setShowPopup] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
   const debouncedAddPlayerSearch = useDebouncedValue(addPlayerSearch, 200)
 
   const getErrorMessage = useCallback((error, fallbackMessage) => {
@@ -325,12 +340,15 @@ const EditMatchForm = ({
       if (playerIds.length === 2) {
         setTeam1([playerIds[0]])
         setTeam2([playerIds[1]])
+        setSelectedPlayerIds(playerIds)
       } else if (playerIds.length === 4) {
         setTeam1([playerIds[0], playerIds[1]])
         setTeam2([playerIds[2], playerIds[3]])
+        setSelectedPlayerIds(playerIds)
       } else {
         setTeam1([])
         setTeam2([])
+        setSelectedPlayerIds(playerIds)
       }
       setShowConfirm(false)
       setSearchTerm('')
@@ -346,6 +364,7 @@ const EditMatchForm = ({
       setAddPlayerError('')
       setPopupMessage('')
       setShowPopup(false)
+      setCurrentStep(1)
     }
   }, [match, isOpen])
 
@@ -396,6 +415,16 @@ const EditMatchForm = ({
 
     const playerId = active.id;
     const dropZone = over.id;
+    const isInSelectedPool = selectedPlayerIds.includes(playerId)
+
+    if (dropZone === 'selected-pool') {
+      if (!isInSelectedPool && selectedPlayerIds.length < 4) {
+        setSelectedPlayerIds((prev) => [...prev, playerId])
+      }
+      return
+    }
+
+    if (!isInSelectedPool && (dropZone === 'team1' || dropZone === 'team2')) return
 
     if (dropZone === "team1" && team1.length < 2 && !team1.includes(playerId)) {
       setTeam1([...team1, playerId]);
@@ -439,6 +468,7 @@ const EditMatchForm = ({
       playerIds
     })
     setShowConfirm(false)
+    onClose()
   }
 
   const getPlayerName = (playerId) => {
@@ -459,6 +489,9 @@ const EditMatchForm = ({
 
   const getFormat = () => {
     const total = team1.length + team2.length
+    if (total === 0) {
+      return selectedPlayerIds.length > 2 ? '2v2 (Doubles)' : '1v1 (Singles)'
+    }
     return total === 2 ? '1v1 (Singles)' : '2v2 (Doubles)'
   }
 
@@ -624,7 +657,12 @@ const EditMatchForm = ({
   const allMatches = Object.values(ongoingMatches).flat().concat(Object.values(matchQueue).flat())
   const playersInUseSet = new Set(allMatches.flatMap((match) => match.playerIds || []))
   
-  let unselectedPlayers = playersInSession.filter((p) => !selectedPlayers.includes(p._id))
+  const selectedPoolSet = new Set(selectedPlayerIds)
+  const selectedPoolPlayers = selectedPlayerIds
+    .map((playerId) => playersInSession.find((player) => player._id === playerId))
+    .filter(Boolean)
+
+  let unselectedPlayers = playersInSession.filter((p) => !selectedPoolSet.has(p._id))
 
   // Filter by search term
   if (debouncedSearchTerm.trim()) {
@@ -740,6 +778,11 @@ const EditMatchForm = ({
 
   const handleAddExistingPlayerToSession = async (playerId) => {
     if (!selectedSession?._id) return
+    if (!selectedPlayerIds.includes(playerId) && selectedPlayerIds.length >= 4) {
+      setAddPlayerError('You can only select up to 4 players in Step 2.')
+      setAddPlayerStatus('error')
+      return
+    }
 
     setAddPlayerStatus('adding')
     setAddPlayerError('')
@@ -752,6 +795,7 @@ const EditMatchForm = ({
       if (res.data?.addPlayersToSession?.ok) {
         setSearchTerm('')
         setAddPlayerSearch('')
+        setSelectedPlayerIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]))
         setAddPlayerStatus('success')
         setTimeout(() => setAddPlayerStatus(null), 2000)
       } else {
@@ -764,6 +808,12 @@ const EditMatchForm = ({
       setAddPlayerStatus('error')
       showErrorPopup(message)
     }
+  }
+
+  const handleRemoveFromSelectionPool = (playerId) => {
+    setSelectedPlayerIds((prev) => prev.filter((id) => id !== playerId))
+    setTeam1((prev) => prev.filter((id) => id !== playerId))
+    setTeam2((prev) => prev.filter((id) => id !== playerId))
   }
 
   const handleCreateAndAddPlayer = async () => {
@@ -812,6 +862,7 @@ const EditMatchForm = ({
       if (addRes.data?.addPlayersToSession?.ok) {
         setSearchTerm('')
         setAddPlayerSearch('')
+        setSelectedPlayerIds((prev) => (prev.includes(newPlayerId) || prev.length >= 4 ? prev : [...prev, newPlayerId]))
         setAddPlayerStatus('success')
         setTimeout(() => setAddPlayerStatus(null), 2000)
       } else {
@@ -923,19 +974,31 @@ const EditMatchForm = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-              {/* Match Type Display */}
-              <div>
-                <p className="mb-1.5 block text-xs font-semibold text-white">
-                  Match Type
-                </p>
-                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1">
-                  <p className="text-xs font-semibold text-emerald-200">
-                    {getFormat()}
-                  </p>
+              <div className="rounded border border-white/10 bg-white/5 p-2">
+                <div className="flex items-center justify-between gap-2 text-[10px] sm:text-xs">
+                  {[
+                    { step: 1, label: 'Match Setup' },
+                    { step: 2, label: 'Find Players' },
+                    { step: 3, label: 'Assign Teams' },
+                  ].map((item) => (
+                    <button
+                      key={item.step}
+                      type="button"
+                      onClick={() => setCurrentStep(item.step)}
+                      className={`flex-1 rounded px-2 py-1 font-semibold transition ${
+                        currentStep === item.step
+                          ? 'bg-sky-500/20 text-sky-100'
+                          : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/70'
+                      }`}
+                    >
+                      {item.step}. {item.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Court */}
+              {currentStep === 1 && (
               <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label htmlFor="edit-match-court" className="mb-1.5 block text-xs font-semibold text-white">
@@ -958,8 +1021,18 @@ const EditMatchForm = ({
                 </div>
 
               </div>
+              )}
+
+              {/* Match Type Indicator */}
+              {currentStep === 2 && (
+              <div className="text-xs text-slate-300">
+                <span className="font-semibold text-white">Match Type:</span>{' '}
+                <span className="font-semibold text-emerald-200">{getFormat()}</span>
+              </div>
+              )}
 
               {/* Filter and Sort */}
+              {currentStep === 2 && (
               <div className="order-2 rounded border border-white/10 bg-white/5 p-2.5">
                   <p className="mb-1.5 block text-xs font-semibold text-white">
                     Filter & Sort
@@ -1026,9 +1099,44 @@ const EditMatchForm = ({
                     </label>
                   </div>
                 </div>
+              )}
 
               {/* Player Grid */}
+              {currentStep === 2 && (
               <div className="order-3">
+                <div className="mb-2">
+                  <p className="mb-1.5 text-xs font-semibold text-sky-100">Selected Players For This Match ({selectedPoolPlayers.length}/4)</p>
+                  <DroppableSelectionPool>
+                    {selectedPoolPlayers.length === 0 ? (
+                      <div className="rounded border border-dashed border-sky-300/30 bg-sky-500/5 px-3 py-4 text-center text-xs text-slate-300">
+                        Drag players here to prepare for Step 3 team assignment
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                        {selectedPoolPlayers.map((player) => (
+                          <div key={`edit-selected-pool-${player._id}`} className="relative">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFromSelectionPool(player._id)}
+                              className="absolute right-1 top-1 z-10 rounded bg-black/40 px-1 text-[9px] text-slate-200 hover:bg-black/60"
+                              title="Remove from selected players"
+                            >
+                              x
+                            </button>
+                            <DraggablePlayer
+                              player={player}
+                              isInUse={playersInUseSet.has(player._id)}
+                              isAssignedToTeam={team1.includes(player._id) || team2.includes(player._id)}
+                              teammateNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateNames || []}
+                              teammateGroupNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateGroupNames || []}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </DroppableSelectionPool>
+                </div>
+
                 <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="w-full">
                     <div className="flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 p-1.5 text-[9px] text-slate-300">
@@ -1231,8 +1339,36 @@ const EditMatchForm = ({
                   )}
                 </div>
               </div>
+              )}
+
+              {currentStep === 3 && (
+                <div className="order-2 rounded border border-white/10 bg-white/5 p-2.5">
+                  <p className="mb-2 text-xs font-semibold text-white">Selected Players (from Step 2)</p>
+                  {selectedPoolPlayers.filter((player) => !team1.includes(player._id) && !team2.includes(player._id)).length === 0 ? (
+                    <div className="rounded border border-white/10 bg-white/5 py-3 text-center text-xs text-slate-400">
+                      All selected players are already assigned to a team.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                      {selectedPoolPlayers
+                        .filter((player) => !team1.includes(player._id) && !team2.includes(player._id))
+                        .map((player) => (
+                        <DraggablePlayer
+                          key={`edit-step3-selected-${player._id}`}
+                          player={player}
+                          isInUse={playersInUseSet.has(player._id)}
+                          isAssignedToTeam={team1.includes(player._id) || team2.includes(player._id)}
+                          teammateNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateNames || []}
+                          teammateGroupNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateGroupNames || []}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Team Selection Grid */}
+              {currentStep === 3 && (
               <div className="order-1">
                 <p className="mb-2 text-xs font-semibold text-white">Drag to Teams</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -1349,6 +1485,7 @@ const EditMatchForm = ({
                 </DroppableTeam>
                 </div>
               </div>
+              )}
 
               {/* Form Actions */}
               <div className="order-4 flex gap-3 border-t border-white/10 pt-3">
@@ -1359,13 +1496,33 @@ const EditMatchForm = ({
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isLoading || !isValidTeamConfiguration()}
-                  className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                >
-                  {isLoading ? 'Updating...' : 'Continue'}
-                </button>
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+                    className="flex-1 rounded-lg border border-white/20 px-3 py-1.5 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
+                  >
+                    Back
+                  </button>
+                )}
+                {currentStep < 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep((prev) => Math.min(3, prev + 1))}
+                    disabled={currentStep === 2 && ![2, 4].includes(selectedPlayerIds.length)}
+                    className="flex-1 rounded-lg bg-sky-500/20 px-3 py-1.5 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/30"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isLoading || !isValidTeamConfiguration()}
+                    className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                  >
+                    {isLoading ? 'Updating...' : 'Continue'}
+                  </button>
+                )}
               </div>
             </form>
           )}

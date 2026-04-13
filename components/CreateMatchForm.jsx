@@ -223,6 +223,21 @@ const DroppableTeam = ({ teamNumber, children }) => {
   );
 };
 
+const DroppableSelectionPool = ({ children }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'selected-pool',
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded border p-2 transition ${isOver ? 'border-sky-300/50 bg-sky-500/20' : 'border-sky-300/30 bg-sky-500/10'}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 const getTeammateGroupColor = (teammateGroupNames) => {
   if (!Array.isArray(teammateGroupNames) || teammateGroupNames.length <= 1) {
     return null;
@@ -287,12 +302,14 @@ const CreateMatchForm = ({
   const [showZeroPlayCountOnly, setShowZeroPlayCountOnly] = useState(false);
   const [currentPlayerPage, setCurrentPlayerPage] = useState(0);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
   const [addPlayerSearch, setAddPlayerSearch] = useState("");
   const [debouncedAddPlayerSearch, setDebouncedAddPlayerSearch] = useState("");
   const [addPlayerStatus, setAddPlayerStatus] = useState(null); // null | 'adding' | 'success' | 'error'
   const [addPlayerError, setAddPlayerError] = useState("");
   const [popupMessage, setPopupMessage] = useState("");
   const [showPopup, setShowPopup] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const getErrorMessage = useCallback((error, fallbackMessage) => {
     const fromGraphQlFields = error?.graphQLErrors
@@ -386,6 +403,7 @@ const CreateMatchForm = ({
       setSelectedCourt("");
       setTeam1([]);
       setTeam2([]);
+      setSelectedPlayerIds([]);
       setShowConfirm(false);
       setPendingMatchData(null);
       setSearchTerm("");
@@ -400,6 +418,7 @@ const CreateMatchForm = ({
       setAddPlayerError("");
       setPopupMessage("");
       setShowPopup(false);
+      setCurrentStep(1);
     }
   }, [getPreferredSessionId, isOpen]);
 
@@ -412,14 +431,33 @@ const CreateMatchForm = ({
     }
   }, [getPreferredSessionId, isOpen, selectedSessionId]);
 
-  // Auto-detect match type based on team configuration
+  // Auto-detect match type based on selected players in step 2 or team configuration in step 3
   useEffect(() => {
+    const selectedCount = selectedPlayerIds.length
+    const assignedCount = team1.length + team2.length
+
+    if (assignedCount > 0) {
+      if (assignedCount > 2) {
+        setMatchType("2v2")
+      } else {
+        setMatchType("1v1")
+      }
+      return
+    }
+
+    if (selectedCount > 2) {
+      setMatchType("2v2")
+      return
+    }
+
     if (team1.length === 1 && team2.length === 1) {
       setMatchType("1v1");
     } else if (team1.length === 2 && team2.length === 2) {
       setMatchType("2v2");
+    } else {
+      setMatchType("1v1")
     }
-  }, [team1, team2]);
+  }, [selectedPlayerIds.length, team1.length, team2.length]);
 
   // Reset player page when search/sort/filter changes
   // Reset list pagination whenever filters change.
@@ -447,6 +485,7 @@ const CreateMatchForm = ({
     const playerId = active.id;
     const isInTeam1 = team1.includes(playerId);
     const isInTeam2 = team2.includes(playerId);
+    const isInSelectedPool = selectedPlayerIds.includes(playerId);
 
     if (!over) {
       if (isInTeam1) {
@@ -460,7 +499,15 @@ const CreateMatchForm = ({
 
     const dropZone = over.id;
 
+    if (dropZone === 'selected-pool') {
+      if (!isInSelectedPool && selectedPlayerIds.length < 4) {
+        setSelectedPlayerIds((prev) => [...prev, playerId]);
+      }
+      return;
+    }
+
     if (dropZone === "team1") {
+      if (!isInSelectedPool) return;
       if (isInTeam1) return;
       if (team1.length >= 2) return;
 
@@ -472,6 +519,7 @@ const CreateMatchForm = ({
     }
 
     if (dropZone === "team2") {
+      if (!isInSelectedPool) return;
       if (isInTeam2) return;
       if (team2.length >= 2) return;
 
@@ -528,11 +576,15 @@ const CreateMatchForm = ({
   const canCreateNewPlayer =
     debouncedAddPlayerSearch.trim() && addPlayerResults.length === 0 && !exactExistingPlayer;
 
-  // Get unselected players
-  const selectedPlayerIds = new Set([...team1, ...team2]);
+  // Get unselected players (not yet added to Step 2 selection pool)
+  const selectedPoolSet = new Set(selectedPlayerIds);
   let unselectedPlayers = playersInSession.filter(
-    (p) => !selectedPlayerIds.has(p._id)
+    (p) => !selectedPoolSet.has(p._id)
   );
+
+  const selectedPoolPlayers = selectedPlayerIds
+    .map((playerId) => playersInSession.find((player) => player._id === playerId))
+    .filter(Boolean);
 
 
   const handleSearchTermChange = (value) => {
@@ -815,8 +867,19 @@ const CreateMatchForm = ({
     }
   };
 
+  const handleRemoveFromSelectionPool = (playerId) => {
+    setSelectedPlayerIds((prev) => prev.filter((id) => id !== playerId));
+    setTeam1((prev) => prev.filter((id) => id !== playerId));
+    setTeam2((prev) => prev.filter((id) => id !== playerId));
+  };
+
   const handleAddExistingPlayerToSession = async (playerId) => {
     if (!selectedSessionId) return;
+    if (!selectedPlayerIds.includes(playerId) && selectedPlayerIds.length >= 4) {
+      setAddPlayerError('You can only select up to 4 players in Step 2.')
+      setAddPlayerStatus('error')
+      return
+    }
     setAddPlayerStatus("adding");
     setAddPlayerError("");
     try {
@@ -826,6 +889,7 @@ const CreateMatchForm = ({
       if (res.data?.addPlayersToSession?.ok) {
         setSearchTerm("");
         setAddPlayerSearch("");
+        setSelectedPlayerIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
         setAddPlayerStatus("success");
         setTimeout(() => setAddPlayerStatus(null), 2000);
       } else {
@@ -883,6 +947,7 @@ const CreateMatchForm = ({
       if (addRes.data?.addPlayersToSession?.ok) {
         setSearchTerm("");
         setAddPlayerSearch("");
+        setSelectedPlayerIds((prev) => (prev.includes(newPlayerId) || prev.length >= 4 ? prev : [...prev, newPlayerId]));
         setAddPlayerStatus("success");
         setTimeout(() => setAddPlayerStatus(null), 2000);
       } else {
@@ -952,6 +1017,7 @@ const CreateMatchForm = ({
     onSubmit(pendingMatchData);
     setShowConfirm(false);
     setPendingMatchData(null);
+    onClose();
 
     // Reset form
     setSelectedSessionId("");
@@ -1073,9 +1139,53 @@ const CreateMatchForm = ({
           </div>
         ) : (
           <form onSubmit={handleSubmitClick} className="space-y-3">
-            {/* Session Selection, Match Type, Court Selection - 2x2 Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="rounded border border-white/10 bg-white/5 p-2">
+              <div className="flex items-center justify-between gap-2 text-[10px] sm:text-xs">
+                {[
+                  { step: 1, label: 'Session & Court' },
+                  { step: 2, label: 'Find Players' },
+                  { step: 3, label: 'Assign Teams' },
+                ].map((item) => (
+                  <button
+                    key={item.step}
+                    type="button"
+                    onClick={() => {
+                      if (item.step === 1) {
+                        setCurrentStep(1)
+                        return
+                      }
+                      if (item.step === 2 && selectedSessionId) {
+                        setCurrentStep(2)
+                        return
+                      }
+                      if (item.step === 3 && selectedSessionId) {
+                        setCurrentStep(3)
+                      }
+                    }}
+                    disabled={(item.step > 1 && !selectedSessionId)}
+                    className={`flex-1 rounded px-2 py-1 font-semibold transition ${
+                      currentStep === item.step
+                        ? 'bg-sky-500/20 text-sky-100'
+                        : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/70'
+                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
+                    {item.step}. {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {currentStep === 1 && (
+            <div className="rounded border border-sky-300/25 bg-sky-500/10 p-2 text-xs text-sky-100">
+              Step 1 of 3: Select session and preferred court.
+            </div>
+            )}
+
+            {/* Session Selection */}
+            {currentStep !== 3 && (
+            <div className="grid grid-cols-1 gap-3">
               {/* Session Selection */}
+              {currentStep === 1 && (
               <div>
                 <label htmlFor="create-match-session" className="mb-1.5 block text-xs font-semibold text-white">
                   Select Session
@@ -1095,10 +1205,12 @@ const CreateMatchForm = ({
                     setSelectedCourt("");
                     setTeam1([]);
                     setTeam2([]);
+                    setSelectedPlayerIds([]);
                     setSearchTerm("");
                     setAddPlayerSearch("");
                     setAddPlayerStatus(null);
                     setAddPlayerError("");
+                    setCurrentStep(1);
                   }}
                   className="w-full rounded border border-white/10 bg-slate-800 px-2 py-1 text-xs text-white focus:border-white/30 focus:outline-none"
                 >
@@ -1110,26 +1222,15 @@ const CreateMatchForm = ({
                   ))}
                 </select>
               </div>
+              )}
 
-              {/* Match Type Display (Auto-detected) */}
-              <div>
-                <p className="mb-1.5 block text-xs font-semibold text-white">
-                  Match Type
-                </p>
-                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1">
-                  <p className="text-xs font-semibold text-emerald-200">
-                    {matchType} ({matchType === "1v1" ? "Singles" : "Doubles"})
-                  </p>
-                  <p className="text-[8px] text-slate-400">
-                    Auto-detected
-                  </p>
-                </div>
-              </div>
             </div>
+            )}
 
             {selectedSessionId && (
               <div className="flex flex-col gap-3">
                 {/* Select Court + Add Player */}
+                {currentStep === 1 && (
                 <div className="grid grid-cols-1 gap-3">
                   {/* Court Selection */}
                   <div>
@@ -1154,8 +1255,18 @@ const CreateMatchForm = ({
                   </div>
 
                 </div>
+                )}
 
                 {/* Filter and Sort */}
+                {currentStep === 2 && (
+                <div className="text-xs text-slate-300">
+                  <span className="font-semibold text-white">Match Type:</span>{' '}
+                  <span className="font-semibold text-emerald-200">{matchType} ({matchType === '1v1' ? 'Singles' : 'Doubles'})</span>
+                </div>
+                )}
+
+              {/* Filter and Sort */}
+              {currentStep === 2 && (
                 <div className="order-2 rounded border border-white/10 bg-white/5 p-2.5">
                   <p className="mb-1.5 block text-xs font-semibold text-white">
                     Filter & Sort
@@ -1222,9 +1333,44 @@ const CreateMatchForm = ({
                     </label>
                   </div>
                 </div>
+                )}
 
-                {/* Player Grid - 4x3 with Pagination */}
+                {/* Player Grid - Step 2 */}
+                {currentStep === 2 && (
                 <div className="order-3">
+                  <div className="mb-2">
+                    <p className="mb-1.5 text-xs font-semibold text-sky-100">Selected Players For This Match ({selectedPoolPlayers.length}/4)</p>
+                    <DroppableSelectionPool>
+                      {selectedPoolPlayers.length === 0 ? (
+                        <div className="rounded border border-dashed border-sky-300/30 bg-sky-500/5 px-3 py-4 text-center text-xs text-slate-300">
+                          Drag players here to prepare for team assignment in Step 3
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                          {selectedPoolPlayers.map((player) => (
+                            <div key={`selected-pool-${player._id}`} className="relative">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFromSelectionPool(player._id)}
+                                className="absolute right-1 top-1 z-10 rounded bg-black/40 px-1 text-[9px] text-slate-200 hover:bg-black/60"
+                                title="Remove from selected players"
+                              >
+                                x
+                              </button>
+                              <DraggablePlayer
+                                player={player}
+                                isInUse={playersInUseSet.has(player._id)}
+                                isAssignedToTeam={team1.includes(player._id) || team2.includes(player._id)}
+                                teammateNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateNames || []}
+                                teammateGroupNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateGroupNames || []}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </DroppableSelectionPool>
+                  </div>
+
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="w-full">
                       <div className="flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 p-1.5 text-[9px] text-slate-300">
@@ -1427,8 +1573,36 @@ const CreateMatchForm = ({
                     )}
                   </div>
                 </div>
+                )}
+
+                {currentStep === 3 && (
+                  <div className="order-2 rounded border border-white/10 bg-white/5 p-2.5">
+                    <p className="mb-2 text-xs font-semibold text-white">Selected Players (from Step 2)</p>
+                    {selectedPoolPlayers.filter((player) => !team1.includes(player._id) && !team2.includes(player._id)).length === 0 ? (
+                      <div className="rounded border border-white/10 bg-white/5 py-3 text-center text-xs text-slate-400">
+                        All selected players are already assigned to a team.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                        {selectedPoolPlayers
+                          .filter((player) => !team1.includes(player._id) && !team2.includes(player._id))
+                          .map((player) => (
+                          <DraggablePlayer
+                            key={`step3-selected-${player._id}`}
+                            player={player}
+                            isInUse={playersInUseSet.has(player._id)}
+                            isAssignedToTeam={team1.includes(player._id) || team2.includes(player._id)}
+                            teammateNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateNames || []}
+                            teammateGroupNames={teammateGroupDataByPlayerId.get(String(player._id))?.teammateGroupNames || []}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Team Selection - Droppable Zones */}
+                {currentStep === 3 && (
                 <div className="order-1">
                   <p className="mb-2 text-xs font-semibold text-white">Drag to Teams</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -1557,6 +1731,7 @@ const CreateMatchForm = ({
                   </DroppableTeam>
                   </div>
                 </div>
+                )}
               </div>
             )}
 
@@ -1569,13 +1744,33 @@ const CreateMatchForm = ({
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
-              >
-                Continue
-              </button>
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-1.5 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
+                >
+                  Back
+                </button>
+              )}
+              {currentStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep((prev) => Math.min(3, prev + 1))}
+                  disabled={(currentStep === 1 && !selectedSessionId) || (currentStep === 2 && ![2, 4].includes(selectedPlayerIds.length))}
+                  className="flex-1 rounded-lg bg-sky-500/20 px-3 py-1.5 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/30 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              )}
             </div>
           </form>
         )}
