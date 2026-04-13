@@ -435,7 +435,7 @@ const SessionRecordDetail = ({ sessionId, onClose }) => {
 
   if (sessionLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 text-white">
         <p>Loading session...</p>
       </div>
     )
