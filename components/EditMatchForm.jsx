@@ -1254,7 +1254,7 @@ const EditMatchForm = ({
                     <div className="rounded border border-white/10 bg-white/5 py-3 text-center text-xs text-slate-400">
                       {searchTerm.trim() ? (
                         <div className="space-y-2 px-2 text-left">
-                          <p className="text-center text-xs text-slate-300">No player in this session matches "{searchTerm.trim()}".</p>
+                          <p className="text-center text-xs text-slate-300">No player in this session matches &quot;{searchTerm.trim()}&quot;.</p>
                           {addPlayerResults.length > 0 && (
                             <div className="mx-auto max-w-md space-y-1">
                               {addPlayerResults.map((player) => (
@@ -1290,7 +1290,7 @@ const EditMatchForm = ({
                             </div>
                           )}
                           {searchTerm.trim() && exactExistingPlayer && exactNameIsInSession && !addPlayerStatus && (
-                            <p className="text-center text-[10px] text-amber-300">"{exactExistingPlayer.name}" is already in this session.</p>
+                            <p className="text-center text-[10px] text-amber-300">&quot;{exactExistingPlayer.name}&quot; is already in this session.</p>
                           )}
                           {addPlayerStatus === 'success' && (
                             <p className="text-center text-[10px] text-emerald-400">Player added to session!</p>
