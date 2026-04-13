@@ -7,7 +7,7 @@
     "dev:turbo": "next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@apollo/client": "^4.1.6",
@@ -54,6 +54,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
+    "eslint": "^9.38.0",
+    "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4.2.0"
   }
 }

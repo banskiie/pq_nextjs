@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client/react'
 import StatusBadge from './StatusBadge'
@@ -66,12 +66,6 @@ const SessionTable = ({ sessions, ongoingMatches, isLoading, error, onViewSessio
   const startIndex = (clampedPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedSessions = sessions.slice(startIndex, endIndex)
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [currentPage, totalPages])
 
   const handleNextPage = () => {
     if (clampedPage < totalPages) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -16,12 +16,7 @@ const navItems = [
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    setIsNavigating(false);
-  }, [pathname]);
 
   const isActive = (href) => {
     if (href === '/') return pathname === '/';
@@ -29,24 +24,11 @@ const Navbar = () => {
   };
 
   const handleNavClick = (href) => {
-    if (href !== pathname) {
-      setIsNavigating(true);
-    }
     setIsMobileMenuOpen(false);
   };
 
   return (
     <>
-      {isNavigating && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
-          <div className="w-[min(90vw,22rem)] rounded-xl border border-white/10 bg-slate-900/95 p-5 text-center shadow-2xl">
-            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-emerald-400" />
-            <p className="text-sm font-semibold text-white">Loading page...</p>
-            <p className="mt-1 text-xs text-slate-400">Opening the selected page.</p>
-          </div>
-        </div>
-      )}
-
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

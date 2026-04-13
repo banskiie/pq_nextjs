@@ -378,7 +378,6 @@ const CreateMatchForm = ({
     return "";
   }, [currentSessionId, sessions]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   // Reset form when closed, but remember last used session
   useEffect(() => {
     if (!isOpen) {
@@ -436,7 +435,6 @@ const CreateMatchForm = ({
 
     return () => clearTimeout(timeoutId);
   }, [addPlayerSearch]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Drag and drop handlers
   const handleDragStart = (event) => {
@@ -497,12 +495,14 @@ const CreateMatchForm = ({
     : [];
   
   // Get players for the selected session - map playerIds to full player objects
-  const playersInSession = selectedSession?.players
-    ? selectedSession.players.map(sp => {
-        const fullPlayer = players?.find(p => p._id === sp.playerId);
-        return fullPlayer ? { ...fullPlayer, gamesPlayed: sp.gamesPlayed } : null;
-      }).filter(Boolean)
-    : [];
+  const playersInSession = useMemo(() => (
+    selectedSession?.players
+      ? selectedSession.players.map(sp => {
+          const fullPlayer = players?.find(p => p._id === sp.playerId);
+          return fullPlayer ? { ...fullPlayer, gamesPlayed: sp.gamesPlayed } : null;
+        }).filter(Boolean)
+      : []
+  ), [players, selectedSession]);
 
   // Players already in session (for add-player widget exclusion)
   const sessionPlayerIds = new Set(selectedSession?.players?.map((sp) => sp.playerId) || []);

@@ -1099,7 +1099,7 @@ const SessionDetailPage = ({ sessionId, onClose, ongoingMatches: propOngoingMatc
 
             <h2 className="mb-4 text-xl font-bold text-white">End Session?</h2>
             <p className="mb-6 text-sm text-slate-300">
-              Are you sure you want to end the session "{session?.name}"? This will close the session and prevent further matches from being recorded.
+              Are you sure you want to end the session &quot;{session?.name}&quot;? This will close the session and prevent further matches from being recorded.
             </p>
 
             <div className="flex gap-3">

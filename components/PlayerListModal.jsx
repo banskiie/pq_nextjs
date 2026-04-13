@@ -243,7 +243,7 @@ const PlayerListModal = ({
             </div>
           ) : filteredPlayerStats.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-400">
-              No players found matching "{searchQuery}"
+              No players found matching &quot;{searchQuery}&quot;
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-white/10">

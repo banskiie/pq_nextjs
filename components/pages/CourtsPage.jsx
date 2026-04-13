@@ -98,6 +98,7 @@ const isCourtOccupied = (court) => court?.status === 'OCCUPIED'
 const CourtFormModal = ({ isOpen, onClose, court, onSubmit, isSubmitting, errorMessage }) => {
   const [formData, setFormData] = useState(EMPTY_FORM)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen) return
     setFormData(
@@ -112,6 +113,7 @@ const CourtFormModal = ({ isOpen, onClose, court, onSubmit, isSubmitting, errorM
         : EMPTY_FORM
     )
   }, [isOpen, court])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen) return null
 

@@ -316,7 +316,6 @@ const EditMatchForm = ({
     })
   );
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (match && isOpen) {
       const playerIds = match.playerIds || []
@@ -349,7 +348,6 @@ const EditMatchForm = ({
       setShowPopup(false)
     }
   }, [match, isOpen])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSearchTermChange = (value) => {
     setSearchTerm(value)
@@ -491,14 +489,16 @@ const EditMatchForm = ({
     : null
   const effectiveCourtId = courtId || autoAssignedCourtId || match?.courtId || null
   const sessionPlayerIds = new Set(selectedSession?.players?.map((sessionPlayer) => sessionPlayer.playerId) || [])
-  const playersInSession = selectedSession?.players
-    ? selectedSession.players
-        .map((sessionPlayer) => {
-          const fullPlayer = players?.find((player) => player._id === sessionPlayer.playerId)
-          return fullPlayer ? { ...fullPlayer, gamesPlayed: sessionPlayer.gamesPlayed } : null
-        })
-        .filter(Boolean)
-    : []
+  const playersInSession = useMemo(() => (
+    selectedSession?.players
+      ? selectedSession.players
+          .map((sessionPlayer) => {
+            const fullPlayer = players?.find((player) => player._id === sessionPlayer.playerId)
+            return fullPlayer ? { ...fullPlayer, gamesPlayed: sessionPlayer.gamesPlayed } : null
+          })
+          .filter(Boolean)
+      : []
+  ), [players, selectedSession])
   const sessionGames = useMemo(() => {
     return sessionGamesData?.gamesBySession || [];
   }, [sessionGamesData?.gamesBySession]);

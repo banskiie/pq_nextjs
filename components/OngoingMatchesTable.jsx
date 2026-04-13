@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -45,7 +45,11 @@ const OngoingMatchesTable = ({ ongoingMatches, sessions, players, courts, onUpda
   const totalPages = Math.max(1, Math.ceil(flattenedMatches.length / matchesPerPage))
   const displayPage = Math.min(currentPage, totalPages)
 
-  const getSortValue = (match, column) => {
+  const getCourtName = useCallback((courtId) => {
+    return courts?.find(c => c._id === courtId)?.name || 'Unknown Court'
+  }, [courts])
+
+  const getSortValue = useCallback((match, column) => {
     if (column === 'session') return (match.sessionName || '').toLowerCase()
     if (column === 'court') return (getCourtName(match.courtId) || '').toLowerCase()
     if (column === 'players') {
@@ -57,7 +61,7 @@ const OngoingMatchesTable = ({ ongoingMatches, sessions, players, courts, onUpda
     if (column === 'format') return match.playerIds?.length === 2 ? 1 : 2
     if (column === 'started') return Number(match.startedAt || match.createdAt || 0)
     return ''
-  }
+  }, [getCourtName, players])
 
   const sortedMatches = useMemo(() => {
     if (!sortColumn) return flattenedMatches
@@ -72,7 +76,7 @@ const OngoingMatchesTable = ({ ongoingMatches, sessions, players, courts, onUpda
     })
 
     return sorted
-  }, [flattenedMatches, sortColumn, sortDirection, players, courts])
+  }, [flattenedMatches, getSortValue, sortColumn, sortDirection])
 
   const handleSort = (column) => {
     setCurrentPage(1)
@@ -111,10 +115,6 @@ const OngoingMatchesTable = ({ ongoingMatches, sessions, players, courts, onUpda
 
     return pages
   }, [displayPage, totalPages])
-
-  function getCourtName(courtId) {
-    return courts?.find(c => c._id === courtId)?.name || 'Unknown Court'
-  }
 
   function getPlayerNames(playerIds) {
     const names = playerIds.map(pId => players?.find(p => p._id === pId)?.name || 'Unknown')

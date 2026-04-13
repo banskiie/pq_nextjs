@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -57,7 +57,11 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
     setCurrentPage(1)
   }, [paginationResetKey])
 
-  const getSortValue = (match, column) => {
+  const getCourtName = useCallback((courtId) => {
+    return courts?.find(c => c._id === courtId)?.name || 'Waiting for Court'
+  }, [courts])
+
+  const getSortValue = useCallback((match, column) => {
     if (column === 'position') return match.globalQueuePosition || 0
     if (column === 'session') return (match.sessionName || '').toLowerCase()
     if (column === 'court') return (getCourtName(match.courtId) || '').toLowerCase()
@@ -70,7 +74,7 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
     if (column === 'format') return match.playerIds?.length === 2 ? 1 : 2
     if (column === 'queuedAt') return Number(match.createdAt || 0)
     return ''
-  }
+  }, [getCourtName, players])
 
   const sortedMatches = useMemo(() => {
     if (!sortColumn) return flattenedMatches
@@ -85,7 +89,7 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
     })
 
     return sorted
-  }, [flattenedMatches, sortColumn, sortDirection, players, courts])
+  }, [flattenedMatches, getSortValue, sortColumn, sortDirection])
 
   const handleSort = (column) => {
     setCurrentPage(1)
@@ -124,10 +128,6 @@ const QueuedMatchesTable = ({ matchQueue, sessions, players, courts, onEditMatch
 
     return pages
   }, [currentPage, totalPages])
-
-  function getCourtName(courtId) {
-    return courts?.find(c => c._id === courtId)?.name || 'Waiting for Court'
-  }
 
   function getPlayerNames(playerIds) {
     const names = playerIds.map(pId => players?.find(p => p._id === pId)?.name || 'Unknown')
