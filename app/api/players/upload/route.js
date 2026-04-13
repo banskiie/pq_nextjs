@@ -19,7 +19,7 @@ export async function POST(req) {
       .split('\n')
       .map((line) =>
         line
-          .replace(/^\s*(?:\d+\s*[.)\-:]\s*|[-*•]+\s*)/, '')
+          .replace(/^\s*(?:\d+\s*[.)\-:]\s*|\d+\s+|[-*•]+\s*)/, '')
           .trim()
       )
       .filter((line) => line.length > 0);

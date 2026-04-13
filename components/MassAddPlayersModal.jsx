@@ -23,7 +23,7 @@ const MassAddPlayersModal = ({
 
   const normalizePlayerName = (line) =>
     line
-      .replace(/^\s*(?:\d+\s*[.)\-:]\s*|[-*•]+\s*)/, '')
+      .replace(/^\s*(?:\d+\s*[.)\-:]\s*|\d+\s+|[-*•]+\s*)/, '')
       .trim()
 
   const parsePlayerNames = (rawText) =>
