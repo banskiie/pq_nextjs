@@ -423,7 +423,7 @@ const PlayerListModal = ({
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
             <div className="border-b border-white/10 px-5 py-4">
               <h3 className="text-base font-semibold text-white">Confirm Without Payment</h3>
-              <p className="mt-1 text-xs text-slate-300">Are you sure you want to finish this player without payment?</p>
+              <p className="mt-1 text-xs text-slate-300">Are you sure you want this player to checkout without payment?</p>
             </div>
 
             <div className="px-5 py-4">
