@@ -269,7 +269,18 @@ const SessionMatchRecordModal = ({ sessionId, sessionIds = [], sessions = [], se
 
           {!error && filteredMatchRecords.length > 0 && (
             <div className="space-y-3">
-              {filteredMatchRecords.map((record) => (
+              {filteredMatchRecords.map((record) => {
+                const teamAContainerClass = record.hasWinnerData
+                  ? 'rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2'
+                  : 'rounded-lg border border-slate-500/20 bg-slate-500/10 p-2'
+                const teamALabelClass = record.hasWinnerData
+                  ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300'
+                  : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300'
+                const teamATextClass = record.hasWinnerData
+                  ? 'mt-1 text-sm text-emerald-100'
+                  : 'mt-1 text-sm text-slate-100'
+
+                return (
                 <div key={record.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -289,11 +300,11 @@ const SessionMatchRecordModal = ({ sessionId, sessionIds = [], sessions = [], se
                   </div>
 
                   <div className="mt-3 space-y-2">
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                    <div className={teamAContainerClass}>
+                      <div className={teamALabelClass}>
                         {record.hasWinnerData ? 'Winners' : 'Team A'}
                       </div>
-                      <div className="mt-1 text-sm text-emerald-100">{record.winners.join(' / ') || 'Unknown'}</div>
+                      <div className={teamATextClass}>{record.winners.join(' / ') || 'Unknown'}</div>
                     </div>
 
                     <div className="rounded-lg border border-slate-500/20 bg-slate-500/10 p-2">
@@ -304,7 +315,8 @@ const SessionMatchRecordModal = ({ sessionId, sessionIds = [], sessions = [], se
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
