@@ -527,7 +527,7 @@ const PlayersPage = ({ onPlayersUpdated, ongoingMatches = {}, matchQueue = {} })
 
   const [restorePlayer] = useMutation(RESTORE_PLAYER_MUTATION)
 
-  const [updatePlayer] = useMutation(UPDATE_PLAYER_MUTATION, {
+  const [updatePlayer, { loading: updatePlayerLoading }] = useMutation(UPDATE_PLAYER_MUTATION, {
     onCompleted: (data) => {
       if (data.updatePlayer.ok) {
         const updatedName = data.updatePlayer.player?.name || editFormData.name.trim()
@@ -1457,9 +1457,14 @@ const PlayersPage = ({ onPlayersUpdated, ongoingMatches = {}, matchQueue = {} })
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                  disabled={updatePlayerLoading}
+                  className="flex-1 rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Save Changes
+                  {updatePlayerLoading ? (
+                    <span className="mx-auto block h-4 w-24 animate-pulse rounded bg-emerald-200/40" aria-hidden="true" />
+                  ) : (
+                    'Save Changes'
+                  )}
                 </button>
                 <button
                   type="button"
