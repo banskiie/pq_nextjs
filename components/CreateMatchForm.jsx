@@ -537,6 +537,9 @@ const CreateMatchForm = ({
 
   const handleSearchTermChange = (value) => {
     setSearchTerm(value);
+    setAddPlayerSearch(value);
+    setAddPlayerError("");
+    setAddPlayerStatus(null);
     setCurrentPlayerPage(0);
   };
 
@@ -821,6 +824,7 @@ const CreateMatchForm = ({
         variables: { id: selectedSessionId, input: { playerIds: [playerId] } },
       });
       if (res.data?.addPlayersToSession?.ok) {
+        setSearchTerm("");
         setAddPlayerSearch("");
         setAddPlayerStatus("success");
         setTimeout(() => setAddPlayerStatus(null), 2000);
@@ -877,6 +881,7 @@ const CreateMatchForm = ({
         variables: { id: selectedSessionId, input: { playerIds: [newPlayerId] } },
       });
       if (addRes.data?.addPlayersToSession?.ok) {
+        setSearchTerm("");
         setAddPlayerSearch("");
         setAddPlayerStatus("success");
         setTimeout(() => setAddPlayerStatus(null), 2000);
@@ -1090,6 +1095,7 @@ const CreateMatchForm = ({
                     setSelectedCourt("");
                     setTeam1([]);
                     setTeam2([]);
+                    setSearchTerm("");
                     setAddPlayerSearch("");
                     setAddPlayerStatus(null);
                     setAddPlayerError("");
@@ -1124,7 +1130,7 @@ const CreateMatchForm = ({
             {selectedSessionId && (
               <div className="flex flex-col gap-3">
                 {/* Select Court + Add Player */}
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3">
                   {/* Court Selection */}
                   <div>
                     <label htmlFor="create-match-court" className="mb-1.5 block text-xs font-semibold text-white">
@@ -1147,76 +1153,6 @@ const CreateMatchForm = ({
                     </select>
                   </div>
 
-                  {/* Add Player to Session */}
-                  <div>
-                    <label htmlFor="create-match-add-player" className="mb-1.5 block text-xs font-semibold text-white">
-                      Add Player to Session
-                    </label>
-                    <div className="flex gap-1.5">
-                      <input
-                        id="create-match-add-player"
-                        type="text"
-                        placeholder="Search name to add..."
-                        value={addPlayerSearch}
-                        onChange={(e) => {
-                          setAddPlayerSearch(e.target.value);
-                          setAddPlayerError("");
-                          setAddPlayerStatus(null);
-                        }}
-                        className="flex-1 rounded border border-white/10 bg-slate-800 px-2 py-1 text-xs text-white placeholder-slate-500 focus:border-white/30 focus:outline-none"
-                      />
-                      {canCreateNewPlayer && (
-                        <button
-                          type="button"
-                          disabled={addPlayerStatus === "adding"}
-                          onClick={handleCreateAndAddPlayer}
-                          className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
-                        >
-                          {addPlayerStatus === "adding" ? "Adding..." : "+ Create & Add"}
-                        </button>
-                      )}
-                    </div>
-                    {addPlayerResults.length > 0 && (
-                      <div className="mt-1.5 max-h-28 space-y-0.5 overflow-y-auto">
-                        {addPlayerResults.map((p) => (
-                          <div key={p._id} className="flex items-center justify-between rounded bg-slate-800 px-2 py-1">
-                            <div>
-                              <span className="text-xs text-white">{p.name}</span>
-                              {p.playerLevel && (
-                                <span className="ml-1.5 text-[9px] text-slate-400">{p.playerLevel}</span>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              disabled={addPlayerStatus === "adding"}
-                              onClick={() => handleAddExistingPlayerToSession(p._id)}
-                              className="rounded border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-300 hover:bg-blue-500/20 disabled:opacity-50"
-                            >
-                              {addPlayerStatus === "adding" ? "..." : "+ Add"}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {addPlayerSearch.trim() && exactExistingPlayer && !addPlayerStatus && (
-                      <p className="mt-1 text-[10px] text-amber-300">
-                        {exactNameIsInSession
-                          ? `"${exactExistingPlayer.name}" already exists in this session.`
-                          : `Existing player found: "${exactExistingPlayer.name}". Click + Add to include in this session.`}
-                      </p>
-                    )}
-                    {canCreateNewPlayer && !addPlayerStatus && (
-                      <p className="mt-1 text-[10px] text-slate-400">
-                        No match — will create new player &quot;{addPlayerSearch.trim()}&quot;
-                      </p>
-                    )}
-                    {addPlayerStatus === "success" && (
-                      <p className="mt-1 text-[10px] text-emerald-400">✓ Player added to session!</p>
-                    )}
-                    {addPlayerError && (
-                      <p className="mt-1 text-[10px] text-rose-400">{addPlayerError}</p>
-                    )}
-                  </div>
                 </div>
 
                 {/* Filter and Sort */}
@@ -1437,7 +1373,56 @@ const CreateMatchForm = ({
                       ))
                     ) : (
                       <div className="rounded border border-white/10 bg-white/5 p-2 text-center text-xs text-slate-400">
-                        No players available
+                        {searchTerm.trim() ? (
+                          <div className="space-y-2 text-left">
+                            <p className="text-center text-xs text-slate-300">No player in this session matches "{searchTerm.trim()}".</p>
+                            {addPlayerResults.length > 0 && (
+                              <div className="mx-auto max-w-md space-y-1">
+                                {addPlayerResults.map((p) => (
+                                  <div key={p._id} className="flex items-center justify-between rounded bg-slate-800 px-2 py-1">
+                                    <div>
+                                      <span className="text-xs text-white">{p.name}</span>
+                                      {p.playerLevel && (
+                                        <span className="ml-1.5 text-[9px] text-slate-400">{p.playerLevel}</span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={addPlayerStatus === "adding"}
+                                      onClick={() => handleAddExistingPlayerToSession(p._id)}
+                                      className="rounded border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-300 hover:bg-blue-500/20 disabled:opacity-50"
+                                    >
+                                      {addPlayerStatus === "adding" ? "..." : "+ Add to session"}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {canCreateNewPlayer && (
+                              <div className="flex justify-center">
+                                <button
+                                  type="button"
+                                  disabled={addPlayerStatus === "adding"}
+                                  onClick={handleCreateAndAddPlayer}
+                                  className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                                >
+                                  {addPlayerStatus === "adding" ? "Adding..." : `+ Create & Add \"${searchTerm.trim()}\"`}
+                                </button>
+                              </div>
+                            )}
+                            {searchTerm.trim() && exactExistingPlayer && exactNameIsInSession && !addPlayerStatus && (
+                              <p className="text-center text-[10px] text-amber-300">"{exactExistingPlayer.name}" is already in this session.</p>
+                            )}
+                            {addPlayerStatus === "success" && (
+                              <p className="text-center text-[10px] text-emerald-400">Player added to session!</p>
+                            )}
+                            {addPlayerError && (
+                              <p className="text-center text-[10px] text-rose-400">{addPlayerError}</p>
+                            )}
+                          </div>
+                        ) : (
+                          'No players available'
+                        )}
                       </div>
                     )}
                   </div>
