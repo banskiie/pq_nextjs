@@ -451,6 +451,10 @@ const SessionDetailPage = ({ sessionId, onClose, ongoingMatches: propOngoingMatc
 
       if (result.data?.startMatch?.ok) {
         const newMatch = result.data.startMatch.match
+
+        if (newMatch?.queued && result.data.startMatch.message) {
+          alert(result.data.startMatch.message)
+        }
         
         if (courtBusy || playersInUse) {
           // Add to queue (with backend ID)

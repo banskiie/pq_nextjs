@@ -817,6 +817,9 @@ export function AppDataProvider({ children }) {
       });
       if (result.data.startMatch.ok) {
         await refetchOngoingMatches();
+        if (result.data.startMatch.match?.queued && result.data.startMatch.message) {
+          alert(result.data.startMatch.message);
+        }
       } else {
         alert(result.data.startMatch.message);
       }
